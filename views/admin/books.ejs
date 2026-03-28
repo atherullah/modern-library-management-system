@@ -6,6 +6,7 @@
         <div class="bg-light border rounded-3 p-3">
           <h2 class="mb-3 display-4">Book Management</h2>
           <a href="/admin/book/add" class="btn btn-primary mb-3">List a new book</a>
+          <button type="button" class="btn btn-outline-success mb-3 ms-2" data-bs-toggle="modal" data-bs-target="#importCsvModal">Import CSV</button>
           <% if (msg.length !== 0) { %>
             <div class="alert alert-info fw-bold" role="alert">
               <%= msg %>
@@ -30,7 +31,7 @@
                   <th scope="col">Title</th>
                   <th scope="col">Author</th>
                   <th scope="col">Publish Year</th>
-                  <th scope="col">Genre</th>
+                  <th scope="col">Categories</th>
                   <th scope="col">Stock</th>
                   <th scope="col">Action</th>
                 </tr>
@@ -43,7 +44,7 @@
                     <td><%= book.title %></td>
                     <td><%= book.author %></td>
                     <td><%= book.publish_year %></td>
-                    <td><%= book.genre %></td>
+                    <td><%= book.categories ? book.categories.join(', ') : '' %></td>
                     <td><%= book.stock %></td>
                     <td>
                       <form action="/admin/book?_method=DELETE" method="POST" class="d-grid gap-2 d-md-block mb-0">
@@ -106,6 +107,31 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal fade" id="importCsvModal" tabindex="-1" aria-labelledby="importCsvModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="/admin/book/import" method="POST" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title" id="importCsvModalLabel">Import Books from CSV</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Please upload a CSV file with the following headers: <strong>title, author, publish_year, description, categories, isbn, stock, page_count</strong>.</p>
+          <div class="mb-3">
+            <label for="csv_file" class="form-label">CSV File</label>
+            <input class="form-control" type="file" id="csv_file" name="csv_file" accept=".csv" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-success">Import</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

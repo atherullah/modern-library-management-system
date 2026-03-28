@@ -1,8 +1,10 @@
 const User = require('../models/User')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
+const sendEmail = require('../utils/sendEmail')
 
 const handleErrors = (err) => {
-  let errors = { email: '', password: '' }
+  let errors = { email: '', password: '', general: '' }
 
   if(err.message === 'Incorrect email') {
     errors.email = 'This email is not registered'
@@ -10,6 +12,10 @@ const handleErrors = (err) => {
   
   if(err.message === 'Incorrect password') {
     errors.password = 'This password is incorrect'
+  }
+
+  if(err.message === 'Email not verified') {
+    errors.email = 'Please verify your email address to log in.'
   }
 
   if(err.code === 11000) {
@@ -41,7 +47,7 @@ exports.login_get = (req, res) => {
   res.render('auth/login')
 }
 
-exports.register_post = (req, res) => {
+exports.register_post = async (req, res) => {
   const { name, email, password, confirmPassword } = req.body
 
   if(password !== confirmPassword) {
@@ -53,16 +59,62 @@ exports.register_post = (req, res) => {
     })
   }
 
-  User.create({ name, email, password })
-    .then(user => {
-      const token = createJWT(user._id)
-      res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 })
-      res.status(201).json({ user: user._id })
-    })
-    .catch(err => {
-      const errors = handleErrors(err)
-      res.status(400).json({ errors })
-    })
+  try {
+    const user = await User.create({ name, email, password })
+    
+    // Generate verification token
+    const verificationToken = user.getVerificationToken()
+    await user.save({ validateBeforeSave: false })
+
+    // Create verify URL
+    const verifyUrl = `${req.protocol}://${req.get('host')}/verify/${verificationToken}`
+    const message = `Please verify your email by clicking the link: \n\n ${verifyUrl}`
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Email Verification',
+        message
+      })
+      res.status(201).json({ success: true, message: 'Registration successful! Please check your email to verify your account.' })
+    } catch(err) {
+      console.error(err)
+      user.verificationToken = undefined
+      await user.save({ validateBeforeSave: false })
+      return res.status(500).json({ errors: { general: 'Email could not be sent' } })
+    }
+  } catch(err) {
+    const errors = handleErrors(err)
+    res.status(400).json({ errors })
+  }
+}
+
+exports.verify_email_get = async (req, res) => {
+  try {
+    const verificationToken = crypto.createHash('sha256').update(req.params.token).digest('hex')
+    
+    const user = await User.findOne({ verificationToken })
+
+    if (!user) {
+      req.flash('error', 'Invalid or expired verification token')
+      return res.redirect('/login')
+    }
+
+    user.isVerified = true
+    user.verificationToken = undefined
+    await user.save({ validateBeforeSave: false })
+    
+    // Automatically log them in
+    const token = createJWT(user._id)
+    res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 })
+    
+    req.flash('success', 'Email successfully verified! You are now logged in.')
+    res.redirect('/')
+  } catch (err) {
+    console.error(err)
+    req.flash('error', 'Something went wrong during verification')
+    res.redirect('/login')
+  }
 }
 
 exports.login_post = (req, res) => {
@@ -72,7 +124,7 @@ exports.login_post = (req, res) => {
     .then(user => {
       const token = createJWT(user._id)
       res.cookie('jwt', token, { httpOnly: true, maxAge: maxAge * 1000 })
-      res.status(201).json({ user: user._id, role: user.role })
+      res.status(200).json({ user: user._id, role: user.role })
     })
     .catch(err => {
       const errors = handleErrors(err)
@@ -83,4 +135,94 @@ exports.login_post = (req, res) => {
 exports.logout = (req, res) => {
   res.cookie('jwt', '', { maxAge: 1 })
   res.redirect('/')
+}
+
+exports.forgot_password_get = (req, res) => {
+  res.render('auth/forgot-password')
+}
+
+exports.forgot_password_post = async (req, res) => {
+  const { email } = req.body
+  try {
+    const user = await User.findOne({ email })
+    if (!user) {
+      return res.status(404).json({ error: 'There is no user with that email' })
+    }
+
+    const resetToken = user.getResetPasswordToken()
+    await user.save({ validateBeforeSave: false })
+
+    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`
+    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please click the link to reset your password: \n\n ${resetUrl}`
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Password Reset Token',
+        message
+      })
+      res.status(200).json({ success: true, message: 'Email sent successfully!' })
+    } catch(err) {
+      console.error(err)
+      user.resetPasswordToken = undefined
+      user.resetPasswordExpire = undefined
+      await user.save({ validateBeforeSave: false })
+      return res.status(500).json({ error: 'Email could not be sent' })
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server Error' })
+  }
+}
+
+exports.reset_password_get = async (req, res) => {
+  const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex')
+  try {
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    })
+    
+    if (!user) {
+      req.flash('error', 'Invalid token or token has expired')
+      return res.redirect('/forgot-password')
+    }
+    
+    res.render('auth/reset-password', { token: req.params.token })
+  } catch (err) {
+    console.error(err)
+    res.redirect('/forgot-password')
+  }
+}
+
+exports.reset_password_post = async (req, res) => {
+  const { password, confirmPassword } = req.body
+  
+  if(password !== confirmPassword) {
+    return res.status(400).json({ error: "Passwords don't match!" })
+  }
+
+  const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex')
+  
+  try {
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    })
+    
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid token or token has expired' })
+    }
+
+    user.password = password
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpire = undefined
+
+    await user.save()
+
+    res.status(200).json({ success: true, message: 'Password reset successfully. You can now login.' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server Error' })
+  }
 }

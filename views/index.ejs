@@ -57,7 +57,7 @@
               <div class="row slider mx-4">
                 <% popularBooks.forEach(book => { %>
                   <div class="card">
-                    <img src="<%= book._id.coverImagePath %>" alt="<%= book._id.title %>" id="img-pointer" class="card-img mt-2" data-bs-toggle="modal" data-bs-target="#popularBookDetailModal<%= book._id.id %>">
+                    <img src="<%= book._id.coverImagePath %>" alt="<%= book._id.title %>" id="img-pointer" class="card-img mt-2" onclick="window.location.href='/book/<%= book._id.id %>'">
                     <div class="card-body p-2">
                       <p class="card-title mx-3 fw-bold" id="book_title" title="<%= book._id.title %>"><%= book._id.title %></p>
                       <% if (book._id.stock !== 0) { %>
@@ -96,7 +96,7 @@
                 <% recentBooks.forEach(book => { %>
                   <div class="col-lg-2 col-md-4 col-sm-6 col-xs-3 my-2" style="width: 11.5rem;">
                     <div class="card">
-                      <img src="<%= book.coverImagePath %>" id="img-pointer" class="card-img mt-2" alt="<%= book.title %>" data-bs-toggle="modal" data-bs-target="#recentBookDetailModal<%= book.id %>">
+                      <img src="<%= book.coverImagePath %>" id="img-pointer" class="card-img mt-2" alt="<%= book.title %>" onclick="window.location.href='/book/<%= book.id %>'">
                       <div class="card-body">
                         <h5 class="card-title fs-6" id="book_title" title="<%= book.title %>"><%= book.title %></h5>
                         <% if (book.stock !== 0) { %>
@@ -149,7 +149,7 @@
                             <li class="list-group-item"><strong>ISBN : </strong> <%= book.isbn %></li>
                             <li class="list-group-item"><strong>Author : </strong> <%= book.author %></li>
                             <li class="list-group-item"><strong>Page Count : </strong> <%= book.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Genre : </strong> <%= book.genre %></li>
+                            <li class="list-group-item"><strong>Categories : </strong> <%= book.categories ? book.categories.join(', ') : '' %></li>
                             <li class="list-group-item"><strong>Description : </strong> <br> <%= book.description %></li>
                         </ul>
                     </div>
@@ -186,7 +186,7 @@
                             <li class="list-group-item"><strong>ISBN : </strong> <%= book._id.isbn %></li>
                             <li class="list-group-item"><strong>Author : </strong> <%= book._id.author %></li>
                             <li class="list-group-item"><strong>Page Count : </strong> <%= book._id.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Genre : </strong> <%= book._id.genre %></li>
+                            <li class="list-group-item"><strong>Categories : </strong> <%= book._id.categories ? book._id.categories.join(', ') : '' %></li>
                             <li class="list-group-item"><strong>Description : </strong> <br> <%= book._id.description %></li>
                         </ul>
                     </div>

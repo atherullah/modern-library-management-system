@@ -9,6 +9,9 @@ const router = express.Router()
 router.get('/', indexController.home)
 router.get('/books/:page?', indexController.allBooks)
 router.get('/search', indexController.searchBook)
+router.get('/book/:id', indexController.bookDetail)
+router.post('/book/:id/review', requireAuth, indexController.addReview)
+router.post('/book/:id/reserve', requireAuth, indexController.reserveBook)
 
 // User Profile
 router.get('/profile', requireAuth, indexController.userProfile)

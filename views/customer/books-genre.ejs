@@ -19,7 +19,7 @@
                 <div class="col-md-9 justify-content-center">
                   <p class="fs-5 fw-normal mb-0"><%= book.title %></p>
                   <p class="fs-6 fw-light mb-0">Created by <%= book.author %></p>
-                  <p class="fs-6 fw-light">Genre: <%= book.genre %></p>
+                  <p class="fs-6 fw-light">Categories: <%= book.categories ? book.categories.join(', ') : '' %></p>
                   <% if (book.stock !== 0) { %>
                     <form class="d-grid gap-2 d-md-block" action="/cart" method="POST">
                       <% if (user) { %>
@@ -27,12 +27,12 @@
                       <% } %>
                       <input type="hidden" name="book_id" value="<%= book.id %>">
                       <input type="hidden" name="prev_url" value="<%= genreParam %>">
-                      <button class="btn btn-outline-info" type="button" data-bs-toggle="modal" data-bs-target="#bookDetailModal<%= book.id %>">More Info</button>
+                      <a class="btn btn-outline-info" href="/book/<%= book.id %>">More Info</a>
                       <button class="btn btn-outline-primary" type="submit">Add to Cart</button>
                     </form>
                   <% } else { %>
                     <div class="d-grid text-center">
-                      <button class="btn btn-outline-info btn-sm mb-1" type="button" data-bs-toggle="modal" data-bs-target="#bookDetailModal<%= book.id %>">More Info</button>
+                      <a class="btn btn-outline-info btn-sm mb-1" href="/book/<%= book.id %>">More Info</a>
                       <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Out of Stock</button>
                     </div>
                   <% } %>
@@ -70,7 +70,7 @@
                             <li class="list-group-item"><strong>ISBN : </strong> <%= book.isbn %></li>
                             <li class="list-group-item"><strong>Author : </strong> <%= book.author %></li>
                             <li class="list-group-item"><strong>Page Count : </strong> <%= book.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Genre : </strong> <%= book.genre %></li>
+                            <li class="list-group-item"><strong>Categories : </strong> <%= book.categories ? book.categories.join(', ') : '' %></li>
                             <li class="list-group-item"><strong>Description : </strong> <br> <%= book.description %></li>
                         </ul>
                     </div>

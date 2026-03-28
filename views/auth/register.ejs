@@ -61,13 +61,18 @@
 
       const data = await res.json()
       if (data.errors) {
-        nameError.textContent = data.errors.name
-        emailError.textContent = data.errors.email
-        passwordError.textContent = data.errors.password
-        confirmPasswordError.textContent = data.errors.confirmPassword
+        nameError.textContent = data.errors.name || ''
+        emailError.textContent = data.errors.email || ''
+        passwordError.textContent = data.errors.password || ''
+        confirmPasswordError.textContent = data.errors.confirmPassword || ''
+        if (data.errors.general) {
+          alert(data.errors.general) // Fallback for general errors like email failing to send
+        }
       }
-      if (data.user) {
-        location.assign('/')
+      if (data.success) {
+        // Show success alert and hide form
+        form.innerHTML = `<div class="alert alert-success mt-4">${data.message}</div>
+                          <div class="text-center mt-3"><a href="/login" class="btn btn-primary">Go to Login</a></div>`
       }
     } catch (err) {
       console.log(err)

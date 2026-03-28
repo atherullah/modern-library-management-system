@@ -25,4 +25,38 @@
           <a href="/profile/edit" class="btn btn-outline-secondary border border-3" type="button"><span class="lead">Edit Profile</span></a>
       </div>
   </div>
+
+  <div class="row mt-5">
+    <div class="col-md-8 mx-auto">
+      <h3 class="mb-4">My Book Reservations</h3>
+      <% if (typeof reservations !== 'undefined' && reservations.length > 0) { %>
+        <div class="list-group">
+          <% reservations.forEach(reservation => { %>
+            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <img src="<%= reservation.book.coverImagePath %>" alt="cover" width="50" class="me-3 rounded">
+                <div>
+                  <h5 class="mb-1"><a href="/book/<%= reservation.book._id %>" class="text-decoration-none text-dark"><%= reservation.book.title %></a></h5>
+                  <small class="text-muted">Reserved on: <%= new Date(reservation.createdAt).toLocaleDateString() %></small>
+                </div>
+              </div>
+              <div>
+                <% if (reservation.status === 'Pending') { %>
+                  <span class="badge bg-warning text-dark fs-6"><%= reservation.status %></span>
+                <% } else if (reservation.status === 'Fulfilled') { %>
+                  <span class="badge bg-success fs-6"><%= reservation.status %></span>
+                <% } else { %>
+                  <span class="badge bg-secondary fs-6"><%= reservation.status %></span>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <div class="alert alert-light text-center border">
+          You don't have any book reservations at the moment.
+        </div>
+      <% } %>
+    </div>
+  </div>
 </div>

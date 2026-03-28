@@ -41,9 +41,8 @@
               <input type="number" class="form-control" name="page_count" min="1" required <% if (typeof page_count !== 'undefined') { %> value="<%= page_count %>" <% } %>>
             </div>
             <div class="mb-3">
-              <label for="genre" class="form-label">Genre</label>
-              <select class="form-select" name="genre" required>
-                <option selected value="" disabled>Choose genre</option>
+              <label for="categories" class="form-label">Categories (Hold Ctrl/Cmd to select multiple)</label>
+              <select class="form-select" name="categories" multiple required size="5">
                 <% genres.forEach(genre => { %>
                   <option value="<%= genre %>"><%= genre %></option>
                 <% }) %>

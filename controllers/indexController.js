@@ -104,7 +104,7 @@ exports.booksByGenre = async  (req, res) => {
       res.redirect('/')
     } else {
       const genreName = genres[genreId - 1]
-      const books = await Book.find({ genre: genreName })
+      const books = await Book.find({ categories: genreName })
       res.render('customer/books-genre', { books, genreName, genreParam: genre, msg: req.flash('msg') })
     }
   } catch(err) {
@@ -113,8 +113,17 @@ exports.booksByGenre = async  (req, res) => {
   }
 }
 
-exports.userProfile = (req, res) => {
-  res.render('customer/profile', { msg: req.flash('msg') })
+exports.userProfile = async (req, res) => {
+  try {
+    const Reservation = require('../models/Reservation')
+    const reservations = await Reservation.find({ user: res.locals.user.id })
+      .populate('book', 'title cover_image')
+      .sort({ createdAt: -1 })
+    res.render('customer/profile', { reservations, msg: req.flash('msg') })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
 }
 
 exports.editProfile = (req, res) => {
@@ -368,5 +377,90 @@ exports.borrowHistory = async (req, res) => {
   } catch(err) {
     console.log(err)
     res.redirect('/')
+  }
+}
+
+exports.bookDetail = async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id)
+    if (!book) return res.redirect('/')
+    
+    // Require Review model here if not in top level
+    const Review = require('../models/Review')
+    const reviews = await Review.find({ book: book._id }).populate('user', 'name profile_picture').sort({ createdAt: -1 })
+    
+    let averageRating = 0;
+    if (reviews.length > 0) {
+      const sum = reviews.reduce((acc, current) => acc + current.rating, 0)
+      averageRating = (sum / reviews.length).toFixed(1)
+    }
+
+    res.render('customer/book', { book, reviews, averageRating, msg: req.flash('msg') })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
+}
+
+exports.addReview = async (req, res) => {
+  try {
+    const { rating, comment, user_id } = req.body
+    const book_id = req.params.id
+
+    if (!user_id) {
+       req.flash('msg', 'You must be logged in to leave a review.')
+       return res.redirect(`/book/${book_id}`)
+    }
+
+    const Review = require('../models/Review')
+    
+    // Check if user already reviewed
+    const existingReview = await Review.findOne({ user: user_id, book: book_id })
+    if (existingReview) {
+       req.flash('msg', 'You have already reviewed this book.')
+       return res.redirect(`/book/${book_id}`)
+    }
+
+    await Review.create({
+      user: user_id,
+      book: book_id,
+      rating: parseInt(rating),
+      comment
+    })
+
+    req.flash('msg', 'Review submitted successfully!')
+    res.redirect(`/book/${book_id}`)
+  } catch (err) {
+    console.log(err)
+    req.flash('msg', 'An error occurred while submitting your review.')
+    res.redirect(`/book/${req.params.id}`)
+  }
+}
+
+exports.reserveBook = async (req, res) => {
+  try {
+    const user_id = req.body.user_id
+    if (!user_id) {
+       req.flash('msg', 'You must be logged in to reserve a book.')
+       return res.redirect(`/book/${req.params.id}`)
+    }
+
+    const Reservation = require('../models/Reservation')
+    
+    // Check if user already has an active reservation
+    const existingRev = await Reservation.findOne({ user: user_id, book: req.params.id, status: 'Pending' })
+    if (existingRev) {
+       req.flash('msg', 'You already have a pending reservation for this book.')
+       return res.redirect(`/book/${req.params.id}`)
+    }
+
+    await Reservation.create({ user: user_id, book: req.params.id })
+
+    req.flash('msg', 'Book reserved successfully! You will be notified when it is available.')
+    res.redirect(`/book/${req.params.id}`)
+  } catch (err) {
+    console.log(err)
+    req.flash('msg', 'Failed to reserve the book.')
+    res.redirect(`/book/${req.params.id}`)
   }
 }

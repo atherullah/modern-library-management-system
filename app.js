@@ -24,6 +24,8 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if(file.fieldname === 'cover_image') {
       cb(null, 'public/images')
+    } else if (file.fieldname === 'csv_file') {
+      cb(null, 'public')
     } else {
       cb(null, 'public/user_images')
     }
@@ -34,7 +36,7 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req, file, cb) => {
-  if(file.mimetype === 'image/png' || file.mimetype === 'image/jpg' || file.mimetype === 'image/jpeg') {
+  if(file.mimetype === 'image/png' || file.mimetype === 'image/jpg' || file.mimetype === 'image/jpeg' || file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel') {
     cb(null, true)
   } else {
     cb(null, false)
@@ -65,6 +67,10 @@ app.use(multer({ storage, fileFilter })
     },
     {
       name: 'profile_picture',
+      maxCount: 1,
+    },
+    {
+      name: 'csv_file',
       maxCount: 1,
     }
   ]))

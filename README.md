@@ -1,219 +1,95 @@
-# Library Management System
+# Modern Library Management System
 
-Library Management System is a full stack monolith web application build with Node.js, Express.js and MongoDB (and Bootstrap).
+A full-stack web application built with Node.js, Express.js, MongoDB, and Bootstrap 5.
 
-This app is build for practice purpose and available publicly, where user can view all books, popular books, recently added books, filter book by genres, and search book by title.
+This application allows users to view books, filter by genre, and search by title. Authenticated customers can access their book cart, borrow books, view their profile, and see their borrow history. Admin users have a dashboard to manage the book catalog (CRUD operations), view all users' borrow histories, and manage public user information.
 
-Some features requires user authentication to be available, such as accessing the book cart, borrowing book(s), view currently borrowed book(s), view their profile, and their borrow history.
+## Tech Stack
+- **Backend:** Node.js, Express.js
+- **Database:** MongoDB (using Mongoose v5)
+- **Frontend:** EJS (Embedded JavaScript templates), Bootstrap 5
+- **Authentication:** JWT (JSON Web Tokens), bcrypt for password hashing
+- **File Uploads:** Multer (for book covers and user profiles)
 
-User authenticated as admin can access the admin dashboard where admin can perform CRUD for books, view borrow history of all user, and view all user public information.
+---
 
-## Links
+## 🚀 Getting Started on Windows
 
-- [Repository](https://github.com/alvinmdj/library-management-system "Library Management System Repo")
+Follow these step-by-step instructions to get the project running locally on a Windows machine.
 
-- [Live Demo](https://alvinmd-library.onrender.com// "Live on Render")
+### 1. Prerequisites Installation
 
-## Build With
-- [Node.js](https://nodejs.org/en/)
-- [Express.js](https://expressjs.com/)
-- [MongoDB](https://www.mongodb.com/)
-- [Bootstrap 5](https://getbootstrap.com/)
+You need Node.js and MongoDB installed on your system.
 
-# Getting Started
+**A. Install Node.js**
+1. Open PowerShell.
+2. Run the following command using winget:
+   ```powershell
+   winget install OpenJS.NodeJS.LTS
+   ```
+3. Restart your PowerShell/Terminal to ensure `node` and `npm` are available in your PATH.
 
-## Prerequisites
-These are the requirements to run this project.
-- [Node.js v16+](https://nodejs.org/en/)
-- [npm v8+](https://www.npmjs.com/)
+**B. Install MongoDB (Community Server)**
+1. In PowerShell, run:
+   ```powershell
+   winget install MongoDB.Server
+   ```
+2. MongoDB will run as a background Windows Service automatically.
 
-## Installation
+### 2. Project Setup
 
-Clone this repository
-
-```sh
-git clone https://github.com/alvinmdj/library-management-system.git
+**A. Clone and Navigate**
+Clone the repository and open the project directory in your terminal:
+```powershell
+# (Skipped if you already have the files locally)
+cd modern-library-management-system
 ```
 
-Change to the project directory
-```sh
-cd library-management-system
-```
-
-Install NPM packages
-```sh
+**B. Install Dependencies**
+Install all required Node.js packages:
+```powershell
 npm install
 ```
+*(If PowerShell blocks npm scripts, you may need to run `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force` first).*
 
-Duplicate .env.example file and rename it as .env and setup the envinronment variables
-```sh
-PORT=PORT_NUMBER
-DB_URL=ENTER_YOUR_MONGODB_URL
-JWT_PRIVATE_KEY=ENTER_YOUR_UNIQUE_JWT_PRIVATE_KEY
+**C. Environment Variables**
+The project requires a `.env` file to store configuration secrets.
+1. Copy the `.env.example` file and rename it to `.env`.
+2. Update the values in `.env`:
+   ```env
+   PORT=3000
+   DB_URL=mongodb://localhost:27017/library-management-system
+   JWT_PRIVATE_KEY=your-super-secret-jwt-key
+   ```
+
+**D. Create Upload Directories**
+If you encounter errors when uploading images or running the app for the first time, ensure the following folders exist:
+```powershell
+mkdir -p public/images
+mkdir -p public/user_images
 ```
 
-Run (development)
-```sh
+### 3. Running the Application
+
+Start the development server:
+```powershell
 npm start
 ```
 
-Start editing the codes.
-
-[![Express Logo](https://i.cloudup.com/zfY6lL7eFa-3000x3000.png)](http://expressjs.com/)
-
-  Fast, unopinionated, minimalist web framework for [node](http://nodejs.org).
-
-  [![NPM Version][npm-image]][npm-url]
-  [![NPM Downloads][downloads-image]][downloads-url]
-  [![Linux Build][ci-image]][ci-url]
-  [![Windows Build][appveyor-image]][appveyor-url]
-  [![Test Coverage][coveralls-image]][coveralls-url]
-
-```js
-const express = require('express')
-const app = express()
-
-app.get('/', function (req, res) {
-  res.send('Hello World')
-})
-
-app.listen(3000)
+You should see output similar to:
+```text
+Alvin's Library | Listening at http://localhost:3000
 ```
 
-## Installation
+Open your web browser and navigate to [http://localhost:3000](http://localhost:3000) to view the application!
 
-This is a [Node.js](https://nodejs.org/en/) module available through the
-[npm registry](https://www.npmjs.com/).
+---
 
-Before installing, [download and install Node.js](https://nodejs.org/en/download/).
-Node.js 0.10 or higher is required.
+## Default Roles
+- **Customer (Role 1):** Default role when a new user registers.
+- **Admin (Role 0):** To make a user an admin, you currently need to manually update their `role` field to `0` in the MongoDB database using MongoDB Compass or `mongosh`.
 
-If this is a brand new project, make sure to create a `package.json` first with
-the [`npm init` command](https://docs.npmjs.com/creating-a-package-json-file).
-
-Installation is done using the
-[`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
-
-```bash
-$ npm install express
-```
-
-Follow [our installing guide](http://expressjs.com/en/starter/installing.html)
-for more information.
-
-## Features
-
-  * Robust routing
-  * Focus on high performance
-  * Super-high test coverage
-  * HTTP helpers (redirection, caching, etc)
-  * View system supporting 14+ template engines
-  * Content negotiation
-  * Executable for generating applications quickly
-
-## Docs & Community
-
-  * [Website and Documentation](http://expressjs.com/) - [[website repo](https://github.com/expressjs/expressjs.com)]
-  * [#express](https://webchat.freenode.net/?channels=express) on freenode IRC
-  * [GitHub Organization](https://github.com/expressjs) for Official Middleware & Modules
-  * Visit the [Wiki](https://github.com/expressjs/express/wiki)
-  * [Google Group](https://groups.google.com/group/express-js) for discussion
-  * [Gitter](https://gitter.im/expressjs/express) for support and discussion
-
-**PROTIP** Be sure to read [Migrating from 3.x to 4.x](https://github.com/expressjs/express/wiki/Migrating-from-3.x-to-4.x) as well as [New features in 4.x](https://github.com/expressjs/express/wiki/New-features-in-4.x).
-
-### Security Issues
-
-If you discover a security vulnerability in Express, please see [Security Policies and Procedures](Security.md).
-
-## Quick Start
-
-  The quickest way to get started with express is to utilize the executable [`express(1)`](https://github.com/expressjs/generator) to generate an application as shown below:
-
-  Install the executable. The executable's major version will match Express's:
-
-```bash
-$ npm install -g express-generator@4
-```
-
-  Create the app:
-
-```bash
-$ express /tmp/foo && cd /tmp/foo
-```
-
-  Install dependencies:
-
-```bash
-$ npm install
-```
-
-  Start the server:
-
-```bash
-$ npm start
-```
-
-  View the website at: http://localhost:3000
-
-## Philosophy
-
-  The Express philosophy is to provide small, robust tooling for HTTP servers, making
-  it a great solution for single page applications, websites, hybrids, or public
-  HTTP APIs.
-
-  Express does not force you to use any specific ORM or template engine. With support for over
-  14 template engines via [Consolidate.js](https://github.com/tj/consolidate.js),
-  you can quickly craft your perfect framework.
-
-## Examples
-
-  To view the examples, clone the Express repo and install the dependencies:
-
-```bash
-$ git clone git://github.com/expressjs/express.git --depth 1
-$ cd express
-$ npm install
-```
-
-  Then run whichever example you want:
-
-```bash
-$ node examples/content-negotiation
-```
-
-## Tests
-
-  To run the test suite, first install the dependencies, then run `npm test`:
-
-```bash
-$ npm install
-$ npm test
-```
-
-## Contributing
-
-[Contributing Guide](Contributing.md)
-
-## People
-
-The original author of Express is [TJ Holowaychuk](https://github.com/tj)
-
-The current lead maintainer is [Douglas Christopher Wilson](https://github.com/dougwilson)
-
-[List of all contributors](https://github.com/expressjs/express/graphs/contributors)
-
-## License
-
-  [MIT](LICENSE)
-
-[ci-image]: https://img.shields.io/github/workflow/status/expressjs/express/ci/master.svg?label=linux
-[ci-url]: https://github.com/expressjs/express/actions?query=workflow%3Aci
-[npm-image]: https://img.shields.io/npm/v/express.svg
-[npm-url]: https://npmjs.org/package/express
-[downloads-image]: https://img.shields.io/npm/dm/express.svg
-[downloads-url]: https://npmcharts.com/compare/express?minimal=true
-[appveyor-image]: https://img.shields.io/appveyor/ci/dougwilson/express/master.svg?label=windows
-[appveyor-url]: https://ci.appveyor.com/project/dougwilson/express
-[coveralls-image]: https://img.shields.io/coveralls/expressjs/express/master.svg
-[coveralls-url]: https://coveralls.io/r/expressjs/express?branch=master
+## Upcoming Phases
+1. **Security Features**
+2. **Book Management Features**
+3. **UX Enhancements**

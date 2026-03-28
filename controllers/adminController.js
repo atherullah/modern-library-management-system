@@ -81,7 +81,7 @@ exports.add_book_view = (req, res) => {
 }
 
 exports.add_book = (req, res) => {
-  const { isbn, title, author, publish_year, page_count, genre, description, stock } = req.body
+  const { isbn, title, author, publish_year, page_count, categories, description, stock } = req.body
   const errors = validationResult(req)
   if(!errors.isEmpty()) {
     removeImage(req.files.cover_image[0].path)
@@ -98,7 +98,7 @@ exports.add_book = (req, res) => {
     })
   } else {
     const cover_image = req.files.cover_image[0].filename
-    Book.create({ isbn, title, author, publish_year, page_count, genre, description, stock, cover_image })
+    Book.create({ isbn, title, author, publish_year, page_count, categories, description, stock, cover_image })
       .then(result => {
         req.flash('msg', 'New book has been added!')
         res.redirect('/admin/book')
@@ -113,10 +113,15 @@ exports.add_book = (req, res) => {
 exports.detail_book = async (req, res) => {
   try {
     const book = await Book.findById(req.params.id)
-    res.render('admin/book-detail', { book, msg: req.flash('msg') })
+    
+    const QRCode = require('qrcode')
+    const bookUrl = `http://localhost:3000/book/${book._id}`
+    const qrCodeDataUrl = await QRCode.toDataURL(bookUrl)
+
+    res.render('admin/book-detail', { book, qrCodeDataUrl, msg: req.flash('msg') })
   } catch (err) {
     console.log(err)
-    res.redirect('/admin')
+    res.redirect('/admin/book')
   }
 }
 
@@ -131,7 +136,7 @@ exports.update_book_view = async (req, res) => {
 }
 
 exports.update_book = async (req, res) => {
-  const { isbn, title, author, publish_year, page_count, genre, description, stock } = req.body
+  const { isbn, title, author, publish_year, page_count, categories, description, stock } = req.body
   const errors = validationResult(req)
   if(!errors.isEmpty()) {
     try {
@@ -170,7 +175,7 @@ exports.update_book = async (req, res) => {
     Book.updateOne(
       { _id: req.body.id },
       { $set: {
-          isbn, title, author, publish_year, page_count, genre, description, stock, cover_image
+          isbn, title, author, publish_year, page_count, categories, description, stock, cover_image
         }
       })
       .then(result => {
@@ -249,5 +254,66 @@ exports.view_users = async (req, res) => {
   } catch(err) {
     console.log(err)
     res.redirect('/admin')
+  }
+}
+
+exports.import_books = async (req, res) => {
+  try {
+    if (!req.files || !req.files.csv_file) {
+      req.flash('msg', 'Please upload a CSV file.')
+      return res.redirect('/admin/book')
+    }
+    
+    const fs = require('fs')
+    const csv = require('csv-parser')
+    const results = []
+    const filePath = req.files.csv_file[0].path
+    
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (data) => results.push(data))
+      .on('end', async () => {
+        try {
+          const booksToInsert = []
+          for (const row of results) {
+            if (!row.title) continue; // Skip empty/invalid rows
+            const categoriesArray = row.categories ? row.categories.split('|').map(c => c.trim()) : []
+            booksToInsert.push({
+              title: row.title,
+              author: row.author,
+              publish_year: row.publish_year,
+              description: row.description,
+              categories: categoriesArray,
+              isbn: row.isbn,
+              stock: parseInt(row.stock) || 0,
+              page_count: parseInt(row.page_count) || 0,
+              coverImagePath: '/public/images/default_cover.jpg'
+            })
+          }
+          
+          if (booksToInsert.length > 0) {
+            await Book.insertMany(booksToInsert)
+            req.flash('msg', `${booksToInsert.length} books imported successfully!`)
+          } else {
+            req.flash('msg', 'No valid book data found in the CSV.')
+          }
+          
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+          res.redirect('/admin/book')
+        } catch (err) {
+          console.log(err)
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+          req.flash('msg', 'An error occurred while inserting data.')
+          res.redirect('/admin/book')
+        }
+      })
+  } catch (err) {
+    console.log(err)
+    if (req.files && req.files.csv_file && fs.existsSync(req.files.csv_file[0].path)) {
+      const fs = require('fs')
+      fs.unlinkSync(req.files.csv_file[0].path)
+    }
+    req.flash('msg', 'An error occurred during import.')
+    res.redirect('/admin/book')
   }
 }

@@ -10,6 +10,7 @@ router.get('/', adminController.admin_dashboard)
 
 // Manage Book
 router.get('/book/add', adminController.add_book_view)
+router.post('/book/import', adminController.import_books)
 router.get('/book/detail/:id', adminController.detail_book)
 router.post('/book', checkUser, bookValidator, adminController.add_book)
 router.get('/book/update/:id', adminController.update_book_view)

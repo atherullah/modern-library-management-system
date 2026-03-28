@@ -40,9 +40,9 @@
                     <td><%= book.page_count %></td>
                   </tr>
                   <tr>
-                    <th scope="row">Genre</th>
+                    <th scope="row">Categories</th>
                     <th>:</th>
-                    <td><%= book.genre %></td>
+                    <td><%= book.categories ? book.categories.join(', ') : '' %></td>
                   </tr>
                   <tr>
                     <th scope="row">Description</th>
@@ -53,6 +53,15 @@
                     <th scope="row">Stock</th>
                     <th>:</th>
                     <td><%= book.stock %></td>
+                  </tr>
+                  <tr>
+                    <th scope="row">QR Code</th>
+                    <th>:</th>
+                    <td>
+                      <img src="<%= qrCodeDataUrl %>" alt="Book QR Code" width="150" height="150" class="mb-2 border p-1 rounded">
+                      <br>
+                      <a href="<%= qrCodeDataUrl %>" download="book-<%= book.isbn %>-qr.png" class="btn btn-sm btn-outline-dark"><i class="bi bi-download"></i> Download</a>
+                    </td>
                   </tr>
                   <tr>
                     <th scope="row">Cover Image</th>
