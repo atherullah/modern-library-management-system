@@ -479,7 +479,22 @@ exports.reserveBook = async (req, res) => {
   }
 }
 
-// ── Wishlist ──────────────────────────────────────────────────────────────────
+// ── Chatbot ───────────────────────────────────────────────────────────────────
+
+exports.chat = async (req, res) => {
+  try {
+    const { getChatResponse } = require('../utils/chatbot')
+    const { message, history } = req.body
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' })
+    }
+    const reply = await getChatResponse(message.trim(), history || [])
+    res.json({ reply })
+  } catch (err) {
+    console.error('[Chatbot]', err.message)
+    res.status(500).json({ error: 'Sorry, I could not process your request right now.' })
+  }
+}
 
 exports.getWishlist = async (req, res) => {
   try {

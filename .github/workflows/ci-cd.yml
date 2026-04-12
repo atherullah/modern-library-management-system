@@ -1,0 +1,64 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master, newFeatures]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ── CI: Install & Validate ──────────────────────────────────────────────────
+  build:
+    name: Build & Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for syntax errors
+        run: node --check app.js
+
+      - name: Verify all key files exist
+        run: |
+          test -f app.js
+          test -f models/User.js
+          test -f models/Book.js
+          test -f controllers/adminController.js
+          test -f controllers/indexController.js
+          echo "All key files present ✓"
+
+      - name: Build Docker image (verify Dockerfile is valid)
+        run: docker build -t library-app:ci .
+
+  # ── CD: Deploy to Render ────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: build
+    # Only deploy on push to main/master (not on PRs)
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Trigger Render Deploy
+        # Add your Render deploy hook URL as a GitHub secret named RENDER_DEPLOY_HOOK
+        # Get it from: Render Dashboard → Your Service → Settings → Deploy Hook
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              --fail
+            echo "Deploy triggered ✓"
+          else
+            echo "RENDER_DEPLOY_HOOK secret not set — skipping deploy"
+          fi
