@@ -67,7 +67,8 @@ exports.register_post = async (req, res) => {
     await user.save({ validateBeforeSave: false })
 
     // Create verify URL
-    const verifyUrl = `${req.protocol}://${req.get('host')}/verify/${verificationToken}`
+    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`
+    const verifyUrl = `${baseUrl}/verify/${verificationToken}`
     const message = `Please verify your email by clicking the link: \n\n ${verifyUrl}`
 
     try {
@@ -152,7 +153,8 @@ exports.forgot_password_post = async (req, res) => {
     const resetToken = user.getResetPasswordToken()
     await user.save({ validateBeforeSave: false })
 
-    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`
+    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`
+    const resetUrl = `${baseUrl}/reset-password/${resetToken}`
     const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please click the link to reset your password: \n\n ${resetUrl}`
 
     try {
