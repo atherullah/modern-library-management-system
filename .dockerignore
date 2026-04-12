@@ -1,0 +1,10 @@
+node_modules
+.env
+.git
+.gitignore
+.kiro
+*.md
+npm-debug.log*
+public/images/*
+public/user_images/*
+seed-books.js

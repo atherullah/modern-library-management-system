@@ -8,7 +8,16 @@
           <form method="POST" action="/admin/book" enctype="multipart/form-data">
             <div class="mb-3">
               <label for="isbn" class="form-label">ISBN</label>
-              <input type="text" class="form-control" id="isbn" name="isbn" required autofocus <% if (typeof isbn !== 'undefined') { %> value="<%= isbn %>" <% } %>>
+              <div class="input-group">
+                <input type="text" class="form-control" id="isbn" name="isbn" required autofocus <% if (typeof isbn !== 'undefined') { %> value="<%= isbn %>" <% } %>>
+                <button type="button" class="btn btn-outline-secondary" onclick="openScanner()" title="Scan barcode">
+                  <i class="bi bi-upc-scan"></i> Scan
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="lookupISBN()" title="Auto-fill from ISBN">
+                  <i class="bi bi-search"></i> Lookup
+                </button>
+              </div>
+              <div class="form-text">Scan a barcode or enter ISBN manually, then click Lookup to auto-fill book details.</div>
               <% if (typeof errors !== 'undefined') { %>
                 <% errors.forEach(err => { %>
                   <% if (err.param === 'isbn') { %>
@@ -76,10 +85,31 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.1/umd/index.min.js"></script>
+
+<!-- Barcode Scanner Modal -->
+<div class="modal fade" id="scannerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-upc-scan"></i> Scan Book Barcode</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopScanner()"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="text-muted small mb-2">Point your camera at the book's barcode (ISBN)</p>
+        <video id="scanner-video" style="width:100%;border-radius:8px;"></video>
+        <div id="scan-result" class="mt-2 text-success fw-bold"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="stopScanner()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   const cover_image = document.querySelector('#cover_image')
   const imagePreviewWrapper = document.querySelector('.image-preview-wrapper')
-  const imagePreview = document.querySelector('.image-preview')
 
   cover_image.addEventListener('change', () => {
     const url = URL.createObjectURL(cover_image.files[0])
@@ -90,4 +120,76 @@
       <img class="image-preview" src=${url} alt="image preview" width="150" height="200">
     `
   });
+
+  let codeReader = null
+
+  function openScanner() {
+    if (typeof ZXingBrowser === 'undefined') {
+      alert('Barcode scanner library not loaded yet. Please wait a moment and try again.')
+      return
+    }
+    const modal = new bootstrap.Modal(document.getElementById('scannerModal'))
+    modal.show()
+    document.getElementById('scan-result').textContent = ''
+
+    codeReader = new ZXingBrowser.BrowserMultiFormatReader()
+    codeReader.decodeFromVideoDevice(null, 'scanner-video', (result, err) => {
+      if (result) {
+        const isbn = result.getText()
+        document.getElementById('isbn').value = isbn
+        document.getElementById('scan-result').textContent = '✓ Scanned: ' + isbn
+        stopScanner()
+        bootstrap.Modal.getInstance(document.getElementById('scannerModal')).hide()
+        // Auto-lookup after scan
+        setTimeout(lookupISBN, 300)
+      }
+      if (err && !(err instanceof ZXingBrowser.NotFoundException)) {
+        console.warn('[Scanner]', err)
+      }
+    }).catch(err => {
+      console.error('[Scanner] Camera error:', err)
+      document.getElementById('scan-result').textContent = '⚠ Camera error: ' + err.message
+      document.getElementById('scan-result').className = 'mt-2 text-danger fw-bold'
+    })
+  }
+
+  function stopScanner() {
+    if (codeReader) {
+      codeReader.reset()
+      codeReader = null
+    }
+  }
+
+  async function lookupISBN() {
+    const isbn = document.getElementById('isbn').value.trim().replace(/-/g, '')
+    if (!isbn) return alert('Please enter or scan an ISBN first.')
+
+    const btn = document.querySelector('button[onclick="lookupISBN()"]')
+    btn.disabled = true
+    btn.textContent = 'Looking up...'
+
+    try {
+      const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`)
+      const data = await res.json()
+      const key = `ISBN:${isbn}`
+      if (!data[key]) {
+        alert('Book not found on Open Library. Please fill in details manually.')
+        return
+      }
+      const book = data[key]
+      if (book.title) document.querySelector('[name="title"]').value = book.title
+      if (book.authors && book.authors.length) document.querySelector('[name="author"]').value = book.authors.map(a => a.name).join(', ')
+      if (book.publish_date) document.querySelector('[name="publish_year"]').value = book.publish_date.slice(-4)
+      if (book.number_of_pages) document.querySelector('[name="page_count"]').value = book.number_of_pages
+      if (book.notes) document.querySelector('[name="description"]').value = typeof book.notes === 'string' ? book.notes : (book.notes.value || '')
+    } catch (err) {
+      alert('Could not fetch book details. Please fill in manually.')
+    } finally {
+      btn.disabled = false
+      btn.innerHTML = '<i class="bi bi-search"></i> Lookup'
+    }
+  }
+
+  // Stop scanner if modal is closed
+  document.getElementById('scannerModal').addEventListener('hidden.bs.modal', stopScanner)
 </script>
