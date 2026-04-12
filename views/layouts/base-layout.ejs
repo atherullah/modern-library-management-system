@@ -17,6 +17,15 @@
     <!-- My CSS -->
     <link rel="stylesheet" href="/public/css/styles.css">
 
+    <script>
+      // Apply dark mode before page renders to avoid flash
+      (function() {
+        if (localStorage.getItem('theme') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+
     <% if (typeof title !== 'undefined') { %>
       <title>Library | <%= title %></title>
     <% } else { %>
@@ -36,6 +45,29 @@
 
     <!-- Slick JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.9.0/slick.min.js" integrity="sha512-HGOnQO9+SP1V92SrtZfjqxxtLmVzqZpjFFekvzZVWoiASSQgSr4cw9Kqd2+l8Llp4Gm0G8GIFJ4ddwZilcdb8A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script type="text/javascript">
+      // Dark mode toggle
+      const toggleBtn = document.getElementById('darkModeToggle');
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            toggleBtn.innerHTML = '<i class="bi bi-moon-fill"></i>';
+          } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            toggleBtn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+          }
+        });
+        // Set correct icon on load
+        if (localStorage.getItem('theme') === 'dark') {
+          toggleBtn.innerHTML = '<i class="bi bi-sun-fill"></i>';
+        }
+      }
+    </script>
 
     <script type="text/javascript">
       $('.slider').slick({

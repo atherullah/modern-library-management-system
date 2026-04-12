@@ -1,0 +1,51 @@
+<div class="container-fluid">
+  <div class="row flex-nowrap">
+    <%- include('../partials/admin-sidebar') %>
+    <div class="col py-3">
+      <div class="col overflow-auto h-100">
+        <div class="bg-light border rounded-3 p-4" style="max-width: 600px;">
+          <h2 class="display-5 mb-1">⚙️ Library Settings</h2>
+          <p class="text-muted mb-4">Configure fine rates and currency for the library.</p>
+
+          <% if (msg && msg.length > 0) { %>
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+              <%= msg %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% } %>
+
+          <form action="/admin/settings" method="POST">
+            <div class="mb-3">
+              <label class="form-label fw-bold">Fine Per Day</label>
+              <input type="number" class="form-control" name="fine_per_day"
+                value="<%= settings.fine_per_day %>" min="0" step="0.01" required>
+              <div class="form-text">Amount charged per day a book is overdue.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">Currency Symbol</label>
+              <input type="text" class="form-control" name="currency_symbol"
+                value="<%= settings.currency_symbol %>" maxlength="5" required placeholder="e.g. $, £, €, ₹">
+              <div class="form-text">Symbol shown before the fine amount (e.g. $, £, €, ₹).</div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-bold">Currency Name</label>
+              <input type="text" class="form-control" name="currency_name"
+                value="<%= settings.currency_name %>" maxlength="10" required placeholder="e.g. USD, GBP, PKR">
+              <div class="form-text">Currency code shown after the fine amount (e.g. USD, PKR).</div>
+            </div>
+
+            <div class="alert alert-secondary py-2 mb-4">
+              <strong>Preview:</strong> A 3-day late return would cost
+              <strong><%= settings.currency_symbol %><%= (settings.fine_per_day * 3).toFixed(2) %> <%= settings.currency_name %></strong>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+            <a href="/admin" class="btn btn-outline-secondary ms-2">Cancel</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -41,6 +41,11 @@
             </ul>
           </li>
         <% } %>
+        <li class="nav-item ms-2">
+          <button id="darkModeToggle" class="btn btn-sm btn-outline-light" title="Toggle dark mode">
+            <i class="bi bi-moon-fill"></i>
+          </button>
+        </li>
       </ul>
     </div>
   </div>
@@ -79,6 +84,18 @@
             <% } %>
           </a>
         </li>
+        <% if (user) { %>
+          <li class="nav-item">
+            <a class="nav-link position-relative" href="/wishlist">
+              Wishlist
+              <% if (typeof wishlistCount !== 'undefined' && wishlistCount > 0) { %>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  <%= wishlistCount %>
+                </span>
+              <% } %>
+            </a>
+          </li>
+        <% } %>
         <% if (user) { %>
           <li class="nav-item">
             <a class="nav-link" href="/inventory/<%= user.id %>">Inventory</a>

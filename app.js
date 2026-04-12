@@ -17,6 +17,7 @@ const authRoutes = require('./routes/authRoutes')
 const adminRoutes = require('./routes/adminRoutes')
 const { adminArea, checkUser } = require('./middlewares/authMiddleware')
 const { genreList } = require('./middlewares/userMiddleware')
+const { startReminderCron } = require('./cron/reminderCron')
 
 const app = express()
 
@@ -88,6 +89,7 @@ mongoose.connect(process.env.DB_URL, {
 }).then(() => {
     app.listen(process.env.PORT || 3000, () => {
       console.log(`Alvin's Library | Listening at http://localhost:${process.env.PORT}`)
+      startReminderCron()
     })
   })
   .catch((err) => console.log(err))

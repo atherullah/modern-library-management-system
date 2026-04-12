@@ -18,6 +18,11 @@ router.get('/profile', requireAuth, indexController.userProfile)
 router.get('/profile/edit', requireAuth, indexController.editProfile)
 router.put('/profile', requireAuth, editProfileValidator, indexController.updateProfile)
 
+// Wishlist
+router.get('/wishlist', requireAuth, indexController.getWishlist)
+router.post('/wishlist', requireAuth, indexController.addToWishlist)
+router.delete('/wishlist', requireAuth, indexController.removeFromWishlist)
+
 // Cart
 router.get('/cart', requireAuth, indexController.cart)
 router.post('/cart', requireAuth, indexController.postToCart)

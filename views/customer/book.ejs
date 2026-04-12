@@ -39,7 +39,7 @@
       <h5 class="fw-bold">Description</h5>
       <p class="lead fs-6" style="white-space: pre-line;"><%= book.description %></p>
 
-      <div class="mt-4">
+      <div class="mt-4 d-flex flex-wrap gap-2">
         <% if (book.stock > 0) { %>
           <form class="d-inline-block" action="/cart" method="POST">
             <% if (user) { %>
@@ -55,6 +55,14 @@
               <input type="hidden" name="user_id" value="<%= user.id %>">
             <% } %>
             <button class="btn btn-warning btn-lg px-4" type="submit"><i class="bi bi-clock-history"></i> Reserve Book</button>
+          </form>
+        <% } %>
+        <% if (user) { %>
+          <form class="d-inline-block" action="/wishlist" method="POST">
+            <input type="hidden" name="user_id" value="<%= user.id %>">
+            <input type="hidden" name="book_id" value="<%= book.id %>">
+            <input type="hidden" name="prev_url" value="/book/<%= book.id %>">
+            <button class="btn btn-outline-danger btn-lg px-4" type="submit"><i class="bi bi-heart"></i> Wishlist</button>
           </form>
         <% } %>
       </div>

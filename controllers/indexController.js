@@ -349,9 +349,19 @@ exports.returnBook = async (req, res) => {
   const { user_id, book_id, history_id } = req.body
 
   try {
+    const Settings = require('../models/Settings')
+    const settings = await Settings.getGlobal()
+
+    const history = await BorrowHistory.findById(history_id)
+    const now = new Date()
+    const dueDate = new Date(history.return_date)
+    const diffMs = now - dueDate
+    const daysLate = diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0
+    const fine = parseFloat((daysLate * settings.fine_per_day).toFixed(2))
+
     await BorrowHistory.updateOne(
       { _id: history_id },
-      { $set: { status: "Returned", book_returned: true, return_date: new Date() } }
+      { $set: { status: "Returned", book_returned: true, actual_return_date: now, fine_amount: fine } }
     )
 
     await Book.updateMany(
@@ -359,7 +369,11 @@ exports.returnBook = async (req, res) => {
       { $inc: { stock: 1 } }
     )
 
-    req.flash('msg', "You just returned a book! Thank you and happy reading!")
+    if (fine > 0) {
+      req.flash('msg', `Book returned! You have a late fine of ${settings.currency_symbol}${fine.toFixed(2)} ${settings.currency_name}. Please pay at the library desk.`)
+    } else {
+      req.flash('msg', "You just returned a book! Thank you and happy reading!")
+    }
     res.redirect(`/inventory/${user_id}`)
   } catch(err) {
     console.log(err)
@@ -373,7 +387,7 @@ exports.borrowHistory = async (req, res) => {
       .populate('borrowed_book')
       .sort({ borrow_date: -1 })
 
-    res.render('customer/borrow-history', { url: req.params.id, borrowHistory })
+    res.render('customer/borrow-history', { url: req.params.id, borrowHistory, msg: req.flash('msg') })
   } catch(err) {
     console.log(err)
     res.redirect('/')
@@ -462,5 +476,57 @@ exports.reserveBook = async (req, res) => {
     console.log(err)
     req.flash('msg', 'Failed to reserve the book.')
     res.redirect(`/book/${req.params.id}`)
+  }
+}
+
+// ── Wishlist ──────────────────────────────────────────────────────────────────
+
+exports.getWishlist = async (req, res) => {
+  try {
+    const Wishlist = require('../models/Wishlist')
+    const items = await Wishlist.find({ user: res.locals.user.id })
+      .populate('book')
+      .sort({ created_at: -1 })
+    res.render('customer/wishlist', { items, msg: req.flash('msg') })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
+}
+
+exports.addToWishlist = async (req, res) => {
+  const { user_id, book_id, prev_url } = req.body
+  try {
+    const Wishlist = require('../models/Wishlist')
+    const existing = await Wishlist.findOne({ user: user_id, book: book_id })
+    if (existing) {
+      req.flash('msg', 'That book is already in your wishlist.')
+      return res.redirect(prev_url || '/wishlist')
+    }
+    await Wishlist.create({ user: user_id, book: book_id })
+    req.flash('msg', 'Book added to your wishlist!')
+    res.redirect(prev_url || '/wishlist')
+  } catch (err) {
+    console.log(err)
+    req.flash('msg', 'Could not add book to wishlist.')
+    res.redirect(prev_url || '/wishlist')
+  }
+}
+
+exports.removeFromWishlist = async (req, res) => {
+  try {
+    const Wishlist = require('../models/Wishlist')
+    const item = await Wishlist.findById(req.body.item_id).populate({ path: 'book', select: 'title' })
+    if (!item) {
+      req.flash('msg', 'Wishlist item not found.')
+      return res.redirect('/wishlist')
+    }
+    const bookTitle = item.book.title
+    await item.remove()
+    req.flash('msg', `'${bookTitle}' removed from your wishlist.`)
+    res.redirect('/wishlist')
+  } catch (err) {
+    console.log(err)
+    res.redirect('/wishlist')
   }
 }

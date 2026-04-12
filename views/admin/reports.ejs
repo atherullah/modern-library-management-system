@@ -1,0 +1,152 @@
+<div class="container-fluid">
+  <div class="row flex-nowrap">
+    <%- include('../partials/admin-sidebar') %>
+    <div class="col py-3">
+      <div class="col overflow-auto h-100">
+        <div class="bg-light border rounded-3 p-3">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h2 class="display-5 mb-0">📋 Borrow Reports</h2>
+            <a href="/admin/reports/export/csv?<%= new URLSearchParams(query).toString() %>"
+               class="btn btn-success">
+              <i class="bi bi-download"></i> Export CSV
+            </a>
+          </div>
+
+          <% if (msg && msg.length > 0) { %>
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+              <%= msg %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% } %>
+
+          <!-- Summary Cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-primary"><%= records.length %></div>
+                <div class="text-muted small">Records</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-warning"><%= records.filter(r => r.status === 'In Progress').length %></div>
+                <div class="text-muted small">Active Borrows</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-danger"><%= settings.currency_symbol %><%= totalFines %></div>
+                <div class="text-muted small">Total Fines</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-danger"><%= settings.currency_symbol %><%= unpaidFines %></div>
+                <div class="text-muted small">Unpaid Fines</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <form method="GET" action="/admin/reports" class="row g-2 mb-4">
+            <div class="col-md-2">
+              <select name="status" class="form-select form-select-sm">
+                <option value="">All Statuses</option>
+                <option value="In Progress" <%= query.status === 'In Progress' ? 'selected' : '' %>>In Progress</option>
+                <option value="Returned" <%= query.status === 'Returned' ? 'selected' : '' %>>Returned</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <input type="text" name="user_name" class="form-control form-control-sm"
+                placeholder="Filter by user name" value="<%= query.user_name || '' %>">
+            </div>
+            <div class="col-md-2">
+              <input type="date" name="from" class="form-control form-control-sm" value="<%= query.from || '' %>">
+            </div>
+            <div class="col-md-2">
+              <input type="date" name="to" class="form-control form-control-sm" value="<%= query.to || '' %>">
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+              <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+              <a href="/admin/reports" class="btn btn-sm btn-outline-secondary">Clear</a>
+              <button type="button" class="btn btn-sm btn-outline-dark" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print
+              </button>
+            </div>
+          </form>
+
+          <!-- Table -->
+          <% if (records.length === 0) { %>
+            <div class="alert alert-secondary">No records found for the selected filters.</div>
+          <% } else { %>
+            <p class="text-muted small mb-2">Showing <%= records.length %> records (max 500)</p>
+            <div class="table-responsive" id="printable-table">
+              <table class="table table-hover table-sm align-middle">
+                <thead class="table-dark">
+                  <tr>
+                    <th>#</th>
+                    <th>User</th>
+                    <th>Book</th>
+                    <th>Borrow Date</th>
+                    <th>Due Date</th>
+                    <th>Returned On</th>
+                    <th>Status</th>
+                    <th>Fine</th>
+                    <th>Fine Paid</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% records.forEach((r, i) => { %>
+                    <tr>
+                      <td class="small text-muted"><%= i + 1 %></td>
+                      <td>
+                        <div class="small fw-bold"><%= r.borrowed_by ? r.borrowed_by.name : 'N/A' %></div>
+                        <div class="small text-muted"><%= r.borrowed_by ? r.borrowed_by.email : '' %></div>
+                      </td>
+                      <td>
+                        <div class="small fw-bold"><%= r.borrowed_book ? r.borrowed_book.title : 'N/A' %></div>
+                        <div class="small text-muted"><%= r.borrowed_book ? r.borrowed_book.isbn : '' %></div>
+                      </td>
+                      <td class="small"><%= r.borrow_date ? new Date(r.borrow_date).toLocaleDateString() : '—' %></td>
+                      <td class="small"><%= r.return_date ? new Date(r.return_date).toLocaleDateString() : '—' %></td>
+                      <td class="small"><%= r.actual_return_date ? new Date(r.actual_return_date).toLocaleDateString() : '—' %></td>
+                      <td>
+                        <span class="badge <%= r.status === 'In Progress' ? 'bg-warning text-dark' : 'bg-success' %>">
+                          <%= r.status %>
+                        </span>
+                      </td>
+                      <td class="small">
+                        <% if (r.fine_amount > 0) { %>
+                          <span class="text-danger fw-bold"><%= settings.currency_symbol %><%= r.fine_amount.toFixed(2) %></span>
+                        <% } else { %>
+                          <span class="text-muted">—</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (r.fine_amount > 0) { %>
+                          <span class="badge <%= r.fine_paid ? 'bg-success' : 'bg-danger' %>">
+                            <%= r.fine_paid ? 'Yes' : 'No' %>
+                          </span>
+                        <% } else { %>
+                          <span class="text-muted small">—</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@media print {
+  .col-auto, form, .btn, .alert, h2, .card { display: none !important; }
+  #printable-table { display: block !important; }
+  .col { width: 100% !important; }
+}
+</style>

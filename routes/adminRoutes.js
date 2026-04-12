@@ -24,4 +24,22 @@ router.get('/orders', adminController.view_orders)
 // View Users
 router.get('/users', adminController.view_users)
 
+// View Fines
+router.get('/fines', adminController.view_fines)
+router.post('/fines/pay', adminController.mark_fine_paid)
+
+// Reports
+router.get('/reports', adminController.view_reports)
+router.get('/reports/export/csv', adminController.export_csv)
+
+// Audit Logs
+router.get('/audit-logs', adminController.view_audit_logs)
+
+// Settings
+router.get('/settings', adminController.view_settings)
+router.post('/settings', adminController.update_settings)
+
+// Email Reminders
+router.post('/reminders/send', adminController.send_reminders)
+
 module.exports = router

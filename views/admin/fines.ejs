@@ -1,0 +1,80 @@
+<div class="container-fluid">
+  <div class="row flex-nowrap">
+    <%- include('../partials/admin-sidebar') %>
+    <div class="col py-3">
+      <div class="col overflow-auto h-100">
+        <div class="bg-light border rounded-3 p-3">
+          <h2 class="display-5 mb-1">💰 Fine Management</h2>
+          <p class="text-muted mb-3">Total unpaid fines: <strong class="text-danger"><%= settings.currency_symbol %><%= totalUnpaid %> <%= settings.currency_name %></strong></p>
+
+          <% if (msg && msg.length > 0) { %>
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+              <%= msg %>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <% } %>
+
+          <% if (fines.length === 0) { %>
+            <div class="alert alert-success">No fines recorded yet.</div>
+          <% } else { %>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                  <tr>
+                    <th>#</th>
+                    <th>User</th>
+                    <th>Book</th>
+                    <th>Due Date</th>
+                    <th>Returned On</th>
+                    <th>Days Late</th>
+                    <th>Fine</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% fines.forEach((fine, i) => {
+                    const dueDate = new Date(fine.return_date)
+                    const returnedOn = fine.actual_return_date ? new Date(fine.actual_return_date) : null
+                    const diffMs = returnedOn ? returnedOn - dueDate : 0
+                    const daysLate = diffMs > 0 ? Math.ceil(diffMs / (1000 * 60 * 60 * 24)) : 0
+                  %>
+                    <tr class="<%= fine.fine_paid ? 'table-success' : 'table-warning' %>">
+                      <td><%= i + 1 %></td>
+                      <td>
+                        <div class="fw-bold"><%= fine.borrowed_by ? fine.borrowed_by.name : 'N/A' %></div>
+                        <small class="text-muted"><%= fine.borrowed_by ? fine.borrowed_by.email : '' %></small>
+                      </td>
+                      <td><%= fine.borrowed_book ? fine.borrowed_book.title : 'N/A' %></td>
+                      <td><%= dueDate.toDateString() %></td>
+                      <td><%= returnedOn ? returnedOn.toDateString() : 'Not yet returned' %></td>
+                      <td><span class="badge bg-danger"><%= daysLate %> day(s)</span></td>
+                      <td><strong><%= settings.currency_symbol %><%= fine.fine_amount.toFixed(2) %> <%= settings.currency_name %></strong></td>
+                      <td>
+                        <% if (fine.fine_paid) { %>
+                          <span class="badge bg-success">Paid</span>
+                        <% } else { %>
+                          <span class="badge bg-warning text-dark">Unpaid</span>
+                        <% } %>
+                      </td>
+                      <td>
+                        <% if (!fine.fine_paid) { %>
+                          <form action="/admin/fines/pay" method="POST">
+                            <input type="hidden" name="history_id" value="<%= fine._id %>">
+                            <button class="btn btn-sm btn-success" type="submit">Mark Paid</button>
+                          </form>
+                        <% } else { %>
+                          <span class="text-muted small">—</span>
+                        <% } %>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

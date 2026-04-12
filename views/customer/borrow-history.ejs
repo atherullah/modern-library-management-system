@@ -20,6 +20,13 @@
                     <div><%= borrowHistory[i].borrowed_book.title %></div>
                     <div class="form-text">(Return Date: <%= new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'long', day: '2-digit'}).format(borrowHistory[i].return_date) %>)</div>
                     <div class="form-text">Borrow Status: <%= borrowHistory[i].status %></div>
+                    <% if (borrowHistory[i].fine_amount > 0) { %>
+                      <div class="mt-1">
+                        <span class="badge <%= borrowHistory[i].fine_paid ? 'bg-success' : 'bg-danger' %>">
+                          Fine: <%= settings.currency_symbol %><%= borrowHistory[i].fine_amount.toFixed(2) %> <%= settings.currency_name %> — <%= borrowHistory[i].fine_paid ? 'Paid' : 'Unpaid' %>
+                        </span>
+                      </div>
+                    <% } %>
                   </div>
                 </div>
               </div>
