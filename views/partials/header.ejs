@@ -74,19 +74,17 @@
             <% }) %>
           </ul>
         </li>
-        <% if (!user || user.role !== 0) { %>
-          <li class="nav-item">
-            <a class="nav-link position-relative" href="/cart">
-              Cart
-              <% if (typeof itemCount !== 'undefined') { %>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                  <%= itemCount %>
-                </span>
-              <% } %>
-            </a>
-          </li>
-        <% } %>
-        <% if (user && user.role !== 0) { %>
+        <li class="nav-item">
+          <a class="nav-link position-relative" href="/cart">
+            Cart
+            <% if (typeof itemCount !== 'undefined') { %>
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                <%= itemCount %>
+              </span>
+            <% } %>
+          </a>
+        </li>
+        <% if (user) { %>
           <li class="nav-item">
             <a class="nav-link position-relative" href="/wishlist">
               Wishlist
@@ -98,15 +96,15 @@
             </a>
           </li>
         <% } %>
-        <% if (user && user.role !== 0) { %>
+        <% if (user) { %>
           <li class="nav-item">
             <a class="nav-link" href="/inventory/<%= user.id %>">Inventory</a>
           </li>
-        <% } %>
-        <% if (user && user.role === 0) { %>
-          <li class="nav-item">
-            <a class="nav-link bg-primary text-white rounded-pill" href="/admin">Admin Panel</a>
-          </li>
+          <% if (user.role === 0) { %>
+            <li class="nav-item">
+              <a class="nav-link bg-primary text-white rounded-pill" href="/admin">Admin Panel</a>
+            </li>
+          <% } %>
         <% } %>
         <form action="/search" method="GET" class="px-4 my-1">
           <div class="input-group rounded">

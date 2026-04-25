@@ -57,7 +57,7 @@
             <button class="btn btn-warning btn-lg px-4" type="submit"><i class="bi bi-clock-history"></i> Reserve Book</button>
           </form>
         <% } %>
-        <% if (user && user.role !== 0) { %>
+        <% if (user) { %>
           <form class="d-inline-block" action="/wishlist" method="POST">
             <input type="hidden" name="user_id" value="<%= user.id %>">
             <input type="hidden" name="book_id" value="<%= book.id %>">
