@@ -40,7 +40,9 @@ const userSchema = new mongoose.Schema({
   },
   verificationToken: String,
   resetPasswordToken: String,
-  resetPasswordExpire: Date
+  resetPasswordExpire: Date,
+  googleId: { type: String },
+  googleAvatar: { type: String },
 },
 {
   timestamps: {

@@ -17,6 +17,7 @@ const authRoutes = require('./routes/authRoutes')
 const adminRoutes = require('./routes/adminRoutes')
 const { adminArea, checkUser } = require('./middlewares/authMiddleware')
 const { genreList } = require('./middlewares/userMiddleware')
+const passport = require('./utils/passport')
 const { startReminderCron } = require('./cron/reminderCron')
 
 const app = express()
@@ -60,6 +61,8 @@ app.use(session({
   saveUninitialized: true,
 }))
 app.use(flash())
+app.use(passport.initialize())
+app.use(passport.session())
 app.use(multer({ storage, fileFilter })
   .fields([
     {
@@ -76,8 +79,9 @@ app.use(multer({ storage, fileFilter })
     }
   ]))
 
-app.get('*', genreList)
-app.get('*', checkUser)
+app.use(genreList)
+app.use(checkUser)
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => res.status(404).end())
 app.use('/admin', adminArea, adminRoutes)
 app.use('/', authRoutes)
 app.use('/', indexRoutes) // placed on the bottom of other routes so '/:genre' doesn't interfere with other routes
