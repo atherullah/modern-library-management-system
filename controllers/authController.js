@@ -2,6 +2,7 @@ const User = require('../models/User')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const sendEmail = require('../utils/sendEmail')
+const { getVerificationTemplate, getPasswordResetTemplate } = require('../utils/emailTemplates')
 
 const handleErrors = (err) => {
   let errors = { email: '', password: '', general: '' }
@@ -69,19 +70,28 @@ exports.register_post = async (req, res) => {
     // Create verify URL
     const verifyUrl = `${req.protocol}://${req.get('host')}/verify/${verificationToken}`
     const message = `Please verify your email by clicking the link: \n\n ${verifyUrl}`
+    const html = getVerificationTemplate(user.name, verifyUrl)
 
     try {
       await sendEmail({
         email: user.email,
         subject: 'Email Verification',
-        message
+        message,
+        html
       })
       res.status(201).json({ success: true, message: 'Registration successful! Please check your email to verify your account.' })
     } catch(err) {
-      console.error(err)
+      console.error('[Auth] Verification email sending failed:', err.message)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('\n\x1b[35m%s\x1b[0m', `👉 OFFLINE REGISTRATION LINK: ${verifyUrl}\n`)
+        return res.status(201).json({ 
+          success: true, 
+          message: 'Registration successful! (Email sandbox fallback: Verification link has been logged to your server terminal console.)' 
+        })
+      }
       user.verificationToken = undefined
       await user.save({ validateBeforeSave: false })
-      return res.status(500).json({ errors: { general: 'Email could not be sent' } })
+      return res.status(500).json({ errors: { general: 'Email could not be sent. Please contact administration.' } })
     }
   } catch(err) {
     const errors = handleErrors(err)
@@ -154,20 +164,29 @@ exports.forgot_password_post = async (req, res) => {
 
     const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`
     const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please click the link to reset your password: \n\n ${resetUrl}`
+    const html = getPasswordResetTemplate(user.name, resetUrl)
 
     try {
       await sendEmail({
         email: user.email,
         subject: 'Password Reset Token',
-        message
+        message,
+        html
       })
       res.status(200).json({ success: true, message: 'Email sent successfully!' })
     } catch(err) {
-      console.error(err)
+      console.error('[Auth] Password reset email sending failed:', err.message)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('\n\x1b[35m%s\x1b[0m', `👉 OFFLINE PASSWORD RESET LINK: ${resetUrl}\n`)
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Password reset link generated! (Email sandbox fallback: Link logged to your server terminal console.)' 
+        })
+      }
       user.resetPasswordToken = undefined
       user.resetPasswordExpire = undefined
       await user.save({ validateBeforeSave: false })
-      return res.status(500).json({ error: 'Email could not be sent' })
+      return res.status(500).json({ error: 'Email could not be sent. Please contact administration.' })
     }
   } catch (err) {
     console.error(err);

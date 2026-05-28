@@ -1,5 +1,6 @@
 const BorrowHistory = require('../models/BorrowHistory');
 const sendEmail = require('./sendEmail');
+const { getDueReminderTemplate } = require('./emailTemplates');
 
 /**
  * Sends due-date reminder emails for books due today and tomorrow.
@@ -46,18 +47,7 @@ const sendDueReminders = async () => {
       const bookTitle      = borrow.borrowed_book.title;
       const userEmail      = borrow.borrowed_by.email;
 
-      const html = `
-        <h2>Library Book Due Date Reminder</h2>
-        <p>Dear ${userName},</p>
-        <p>This is a reminder that the following book is due <strong>${when}</strong>:</p>
-        <ul>
-          <li><strong>Title:</strong> ${bookTitle}</li>
-          <li><strong>Borrowed on:</strong> ${borrowDateStr}</li>
-          <li><strong>Due date:</strong> ${returnDateStr}</li>
-        </ul>
-        <p>Please return the book to avoid any late fees.</p>
-        <p>Thank you,<br/>Library Management Team</p>
-      `;
+      const html = getDueReminderTemplate(userName, bookTitle, borrowDateStr, returnDateStr, when);
 
       const message = `Dear ${userName},\n\nThis is a reminder that "${bookTitle}" is due ${when}.\nBorrowed on: ${borrowDateStr}\nDue date: ${returnDateStr}\n\nPlease return the book to avoid any late fees.\n\nThank you,\nLibrary Management Team`;
 
