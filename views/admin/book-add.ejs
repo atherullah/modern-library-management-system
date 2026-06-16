@@ -85,7 +85,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
 
 <!-- Barcode Scanner Modal -->
 <div class="modal fade" id="scannerModal" tabindex="-1" aria-hidden="true">
@@ -121,72 +121,188 @@
     `
   });
 
-  let codeReader = null
+  let scannerControls = null
 
-  function openScanner() {
+  async function openScanner() {
     if (typeof ZXingBrowser === 'undefined') {
-      alert('Barcode scanner library not loaded yet. Please wait a moment and try again.')
+      alert('Barcode scanner library failed to load. Please check your connection and try again.')
       return
     }
-    const modal = new bootstrap.Modal(document.getElementById('scannerModal'))
-    modal.show()
-    document.getElementById('scan-result').textContent = ''
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Camera access requires a secure context (https:// or http://localhost).')
+      return
+    }
 
-    codeReader = new ZXingBrowser.BrowserMultiFormatReader()
-    codeReader.decodeFromVideoDevice(null, 'scanner-video', (result, err) => {
-      if (result) {
-        const isbn = result.getText()
-        document.getElementById('isbn').value = isbn
-        document.getElementById('scan-result').textContent = '✓ Scanned: ' + isbn
-        stopScanner()
-        bootstrap.Modal.getInstance(document.getElementById('scannerModal')).hide()
-        // Auto-lookup after scan
-        setTimeout(lookupISBN, 300)
-      }
-      if (err && !(err instanceof ZXingBrowser.NotFoundException)) {
-        console.warn('[Scanner]', err)
-      }
-    }).catch(err => {
+    const modalEl = document.getElementById('scannerModal')
+    const resultEl = document.getElementById('scan-result')
+    resultEl.textContent = ''
+    resultEl.className = 'mt-2 text-success fw-bold'
+    new bootstrap.Modal(modalEl).show()
+
+    const codeReader = new ZXingBrowser.BrowserMultiFormatReader()
+    try {
+      // Prefer the rear camera — better for scanning a physical book barcode.
+      // facingMode is a preference (not exact), so it falls back to a webcam on desktop.
+      scannerControls = await codeReader.decodeFromConstraints(
+        { video: { facingMode: 'environment' } },
+        'scanner-video',
+        (result, err, controls) => {
+          scannerControls = controls
+          if (result) {
+            const isbn = result.getText()
+            document.getElementById('isbn').value = isbn
+            resultEl.textContent = '✓ Scanned: ' + isbn
+            stopScanner()
+            bootstrap.Modal.getInstance(modalEl).hide()
+            setTimeout(lookupISBN, 300) // auto-fill details after a successful scan
+          }
+          // NotFoundException fires on every frame with no barcode — ignore it.
+          if (err && err.name && err.name !== 'NotFoundException') {
+            console.warn('[Scanner]', err)
+          }
+        }
+      )
+    } catch (err) {
       console.error('[Scanner] Camera error:', err)
-      document.getElementById('scan-result').textContent = '⚠ Camera error: ' + err.message
-      document.getElementById('scan-result').className = 'mt-2 text-danger fw-bold'
-    })
+      resultEl.textContent = '⚠ Camera error: ' + (err && err.message ? err.message : err)
+      resultEl.className = 'mt-2 text-danger fw-bold'
+    }
   }
 
   function stopScanner() {
-    if (codeReader) {
-      codeReader.reset()
-      codeReader = null
+    if (scannerControls) {
+      scannerControls.stop()
+      scannerControls = null
+    }
+  }
+
+  function notify(msg, type) {
+    if (window.showToast) window.showToast(msg, type || 'info')
+    else alert(msg)
+  }
+
+  // Only write non-empty values; clicking Lookup overwrites existing fields on purpose.
+  function setField(name, val) {
+    const el = document.querySelector(`[name="${name}"]`)
+    if (el && val != null && String(val).trim() !== '') el.value = val
+  }
+
+  // Pull a 4-digit year out of messy strings like "1993?" or "March 2005".
+  function yearFrom(s) {
+    const m = String(s || '').match(/(\d{4})/)
+    return m ? m[1] : ''
+  }
+
+  // Best-effort: tick the genre options whose name appears in the fetched subjects/categories.
+  function autoSelectCategories(subjects) {
+    const select = document.querySelector('[name="categories"]')
+    if (!select || !subjects || !subjects.length) return
+    const hay = subjects.join(' | ').toLowerCase()
+    Array.from(select.options).forEach(opt => {
+      if (hay.includes(opt.value.toLowerCase())) opt.selected = true
+    })
+  }
+
+  // Fetch the cover image and attach it to the (required) file input + show a preview,
+  // so the admin doesn't have to download/upload it manually.
+  async function attachCover(url, isbn) {
+    try {
+      const resp = await fetch(url)
+      if (!resp.ok) return false
+      const blob = await resp.blob()
+      // Skip blank/placeholder covers Open Library sometimes returns.
+      if (!blob.type.startsWith('image/') || blob.size < 1500) return false
+      const ext = blob.type.includes('png') ? 'png' : 'jpg'
+      const file = new File([blob], `cover_${isbn}.${ext}`, { type: blob.type })
+      const input = document.getElementById('cover_image')
+      const dt = new DataTransfer()
+      dt.items.add(file)
+      input.files = dt.files
+      input.dispatchEvent(new Event('change')) // triggers the existing preview render
+      return true
+    } catch (err) {
+      console.warn('[Cover] auto-fetch failed (CORS/network):', err)
+      return false // fall back to manual upload
     }
   }
 
   async function lookupISBN() {
-    const isbn = document.getElementById('isbn').value.trim().replace(/-/g, '')
-    if (!isbn) return alert('Please enter or scan an ISBN first.')
+    const isbn = document.getElementById('isbn').value.trim().replace(/[-\s]/g, '')
+    if (!isbn) return notify('Please enter or scan an ISBN first.', 'warning')
 
     const btn = document.querySelector('button[onclick="lookupISBN()"]')
+    const original = btn.innerHTML
     btn.disabled = true
-    btn.textContent = 'Looking up...'
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Looking up...'
+
+    const info = { title: '', author: '', publish_year: '', page_count: '', description: '', subjects: [] }
+    let coverUrl = ''
 
     try {
-      const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`)
-      const data = await res.json()
-      const key = `ISBN:${isbn}`
-      if (!data[key]) {
-        alert('Book not found on Open Library. Please fill in details manually.')
+      // ── Primary source: Open Library (also provides cover image URLs) ──
+      try {
+        const res = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`)
+        const data = await res.json()
+        const b = data[`ISBN:${isbn}`]
+        if (b) {
+          info.title = b.subtitle ? `${b.title}: ${b.subtitle}` : (b.title || '')
+          info.author = (b.authors || []).map(a => a.name).join(', ')
+          info.publish_year = yearFrom(b.publish_date)
+          info.page_count = b.number_of_pages || ''
+          info.description = b.notes ? (typeof b.notes === 'string' ? b.notes : (b.notes.value || '')) : ''
+          info.subjects = (b.subjects || []).map(s => s.name)
+          if (b.cover) coverUrl = b.cover.large || b.cover.medium || b.cover.small || ''
+        }
+      } catch (e) { console.warn('[Lookup] Open Library failed:', e) }
+
+      // ── Fallback: Google Books fills any gaps (esp. description/categories) ──
+      if (!info.title || !info.author || !info.description || !info.subjects.length || !info.page_count || !coverUrl) {
+        try {
+          const gres = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&country=US`)
+          if (gres.ok) {
+            const gdata = await gres.json()
+            const v = gdata.items && gdata.items[0] && gdata.items[0].volumeInfo
+            if (v) {
+              info.title = info.title || (v.subtitle ? `${v.title}: ${v.subtitle}` : (v.title || ''))
+              info.author = info.author || (v.authors || []).join(', ')
+              info.publish_year = info.publish_year || yearFrom(v.publishedDate)
+              info.page_count = info.page_count || v.pageCount || ''
+              info.description = info.description || v.description || ''
+              if (!info.subjects.length) info.subjects = v.categories || []
+              if (!coverUrl && v.imageLinks) {
+                coverUrl = (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || '').replace(/^http:/, 'https:')
+              }
+            }
+          }
+        } catch (e) { console.warn('[Lookup] Google Books failed:', e) }
+      }
+
+      if (!info.title && !info.author) {
+        notify('No details found for this ISBN on Open Library or Google Books. Please fill in manually.', 'warning')
         return
       }
-      const book = data[key]
-      if (book.title) document.querySelector('[name="title"]').value = book.title
-      if (book.authors && book.authors.length) document.querySelector('[name="author"]').value = book.authors.map(a => a.name).join(', ')
-      if (book.publish_date) document.querySelector('[name="publish_year"]').value = book.publish_date.slice(-4)
-      if (book.number_of_pages) document.querySelector('[name="page_count"]').value = book.number_of_pages
-      if (book.notes) document.querySelector('[name="description"]').value = typeof book.notes === 'string' ? book.notes : (book.notes.value || '')
+
+      setField('title', info.title)
+      setField('author', info.author)
+      setField('publish_year', info.publish_year)
+      setField('page_count', info.page_count)
+      setField('description', info.description)
+      autoSelectCategories(info.subjects)
+
+      let coverMsg = ''
+      if (coverUrl) {
+        const ok = await attachCover(coverUrl, isbn)
+        coverMsg = ok ? ' Cover image added.' : ' (Cover unavailable — please upload one.)'
+      } else {
+        coverMsg = ' (No cover found — please upload one.)'
+      }
+      notify('Book details auto-filled.' + coverMsg, 'success')
     } catch (err) {
-      alert('Could not fetch book details. Please fill in manually.')
+      console.error('[Lookup]', err)
+      notify('Could not fetch book details. Please fill in manually.', 'danger')
     } finally {
       btn.disabled = false
-      btn.innerHTML = '<i class="bi bi-search"></i> Lookup'
+      btn.innerHTML = original
     }
   }
 

@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const sendEmail = require('../utils/sendEmail')
 const { getVerificationTemplate, getPasswordResetTemplate } = require('../utils/emailTemplates')
+const { getBaseUrl } = require('../utils/baseUrl')
 
 const handleErrors = (err) => {
   let errors = { email: '', password: '', general: '' }
@@ -67,8 +68,9 @@ exports.register_post = async (req, res) => {
     const verificationToken = user.getVerificationToken()
     await user.save({ validateBeforeSave: false })
 
-    // Create verify URL
-    const verifyUrl = `${req.protocol}://${req.get('host')}/verify/${verificationToken}`
+    // Build the verify URL from the public base URL so the link in the email
+    // works on any device (not localhost).
+    const verifyUrl = `${getBaseUrl(req)}/verify/${verificationToken}`
     const message = `Please verify your email by clicking the link: \n\n ${verifyUrl}`
     const html = getVerificationTemplate(user.name, verifyUrl)
 
@@ -162,7 +164,7 @@ exports.forgot_password_post = async (req, res) => {
     const resetToken = user.getResetPasswordToken()
     await user.save({ validateBeforeSave: false })
 
-    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`
+    const resetUrl = `${getBaseUrl(req)}/reset-password/${resetToken}`
     const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please click the link to reset your password: \n\n ${resetUrl}`
     const html = getPasswordResetTemplate(user.name, resetUrl)
 

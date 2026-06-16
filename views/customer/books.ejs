@@ -1,44 +1,33 @@
 <div class="display-5 text-center my-5">All Books</div>
 <div class="container">
-  <% if (msg.length !== 0) { %>
-    <div class="alert alert-info fw-bold text-center" role="alert">
-      <%= msg %>
-    </div>
-  <% } %>
-  <% if (typeof books !== 'undefined') { %>
+<%- include('../partials/flash-toast') %>
+
+  <%- include('../partials/book-filters', { filterAction: '/books', showSearch: true }) %>
+
+  <p class="text-muted small mb-3">
+    <%= totalBook %> book<%= totalBook === 1 ? '' : 's' %> found<% if (typeof q !== 'undefined' && q) { %> for "<strong><%= q %></strong>"<% } %>
+  </p>
+
+  <% if (typeof books !== 'undefined' && books.length > 0) { %>
     <div class="row d-flex justify-content-center">
       <% books.forEach(book => { %>
         <div class="col-lg-2 col-md-4 col-sm-6 col-xs-3 my-2" style="width: 12rem;">
-          <div class="card">
-            <img src="<%= book.coverImagePath %>" id="img-pointer" class="card-img mt-2" alt="<%= book.title %>" onclick="window.location.href='/book/<%= book.id %>'">
-            <div class="card-body">
-              <h5 class="card-title fs-6" id="book_title" title="<%= book.title %>"><%= book.title %></h5>
-              <% if (book.stock !== 0) { %>
-                <form class="cart d-grid mx-auto mb-0" action="/cart" method="POST">
-                  <% if (user) { %>
-                    <input type="hidden" name="user_id" value="<%= user.id %>">
-                  <% } %>
-                  <input type="hidden" name="book_id" value="<%= book.id %>">
-                  <input type="hidden" name="prev_url" value="/books">
-                  <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-cart4"></i> Add to Cart</button>
-                </form>
-              <% } else { %>
-                <div class="d-grid text-center">
-                  <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Out of Stock</button>
-                </div>
-              <% } %>
-            </div>
-          </div>
+          <%- include('../partials/book-card', { book: book, rating: (typeof ratings !== 'undefined' ? ratings[book.id] : null), prevUrl: '/books' }) %>
         </div>
       <% }) %>
     </div>
   <% } else { %>
-    <p class="text-center">Looks like there are no book yet...</p>
+    <div class="text-center py-5">
+      <i class="bi bi-search" style="font-size:2.5rem;color:#adb5bd;"></i>
+      <p class="lead text-muted mt-3 mb-1">No books match your search.</p>
+      <a href="/books" class="btn btn-outline-secondary btn-sm mt-2">Clear filters</a>
+    </div>
   <% } %>
 </div>
 
 <!-- Pagination -->
 <div class="mb-4">
+  <% const fq = typeof filterQuery !== 'undefined' ? filterQuery : '' %>
   <% if (totalPage > 0) { %>
     <ul class="pagination justify-content-center mt-5">
       <% if (currentPage === 1) { %>
@@ -47,7 +36,7 @@
         </li>
       <% } else { %>
         <li class="page-item">
-          <a class="page-link" href="/books/1">First</a>
+          <a class="page-link" href="/books/1<%= fq %>">First</a>
         </li>
       <% } %>
       <% let i = (currentPage > 5 ? currentPage - 4 : 1) %>
@@ -63,7 +52,7 @@
           </li>
         <% } else { %>
           <li class="page-item">
-            <a class="page-link" href="/books/<%= i %>"><%= i %></a>
+            <a class="page-link" href="/books/<%= i %><%= fq %>"><%= i %></a>
           </li>
         <% } %>
         <% if (i == currentPage + 4 && i < totalPage) { %>
@@ -78,46 +67,10 @@
         </li>
       <% } else { %>
         <li class="page-item">
-          <a class="page-link" href="/books/<%= totalPage %>">Last</a>
+          <a class="page-link" href="/books/<%= totalPage %><%= fq %>">Last</a>
         </li>
       <% } %>
     </ul>
   <% } %>
 </div>
 
-<!-- Book Detail Modal -->
-<% books.forEach(book => { %>
-  <div class="modal fade" id="bookDetailModal<%= book.id %>" tabindex="-1" aria-labelledby="bookDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bookDetailModalLabel">Book Detail</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div class="container-fluid">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <img src="<%= book.coverImagePath %>" class="img-fluid card-img">
-                    </div>
-                    <div class="col-md">
-                        <ul class="list-group">
-                            <li class="list-group-item"><h4><%= `${book.title} (${book.publish_year})` %></h4></li>
-                            <li class="list-group-item"><strong>Stock : </strong> <%= book.stock %></li>
-                            <li class="list-group-item"><strong>ISBN : </strong> <%= book.isbn %></li>
-                            <li class="list-group-item"><strong>Author : </strong> <%= book.author %></li>
-                            <li class="list-group-item"><strong>Page Count : </strong> <%= book.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Categories : </strong> <%= book.categories ? book.categories.join(', ') : '' %></li>
-                            <li class="list-group-item"><strong>Description : </strong> <br> <%= book.description %></li>
-                        </ul>
-                    </div>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-  </div>
-<% }) %>

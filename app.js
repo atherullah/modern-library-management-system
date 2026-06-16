@@ -38,12 +38,25 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req, file, cb) => {
-  if(file.mimetype === 'image/png' || file.mimetype === 'image/jpg' || file.mimetype === 'image/jpeg' || file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel') {
+  const allowedMimes = [
+    'image/png', 'image/jpg', 'image/jpeg',
+    'text/csv', 'application/csv',
+    'application/vnd.ms-excel', // .xls (and some browsers' .csv)
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/octet-stream', // some browsers send this for .xlsx
+  ]
+  const allowedExts = ['.png', '.jpg', '.jpeg', '.csv', '.xls', '.xlsx']
+  const ext = path.extname(file.originalname).toLowerCase()
+  if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true)
   } else {
     cb(null, false)
   }
 }
+
+// Behind a hosting proxy (Render/Railway/etc.) that terminates TLS, so req.protocol
+// reflects the original https request rather than the internal http hop.
+app.set('trust proxy', 1)
 
 app.set('view engine', 'ejs')
 app.set('layout', 'layouts/base-layout')

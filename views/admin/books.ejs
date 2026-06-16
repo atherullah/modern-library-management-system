@@ -117,14 +117,15 @@
     <div class="modal-content">
       <form action="/admin/book/import" method="POST" enctype="multipart/form-data">
         <div class="modal-header">
-          <h5 class="modal-title" id="importCsvModalLabel">Import Books from CSV</h5>
+          <h5 class="modal-title" id="importCsvModalLabel">Import Books from CSV / Excel</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p>Please upload a CSV file with the following headers: <strong>title, author, publish_year, description, categories, isbn, stock, page_count</strong>.</p>
+          <p>Upload a <strong>.csv</strong> or <strong>.xlsx</strong> file. A header row with at least <strong>title</strong> and <strong>author</strong> columns is required; <strong>publish_year, description, categories, isbn, stock, page_count</strong> are used when present.</p>
+          <p class="small text-muted mb-3">Any missing fields are filled automatically: rows without an ISBN get a generated catalogue ID, stock defaults to 1, and banner/heading rows above the column titles are skipped.</p>
           <div class="mb-3">
-            <label for="csv_file" class="form-label">CSV File</label>
-            <input class="form-control" type="file" id="csv_file" name="csv_file" accept=".csv" required>
+            <label for="csv_file" class="form-label">CSV or Excel File</label>
+            <input class="form-control" type="file" id="csv_file" name="csv_file" accept=".csv,.xls,.xlsx" required>
           </div>
         </div>
         <div class="modal-footer">

@@ -3,6 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build toolchain so native deps (e.g. bcrypt) can compile from source when the
+# prebuilt binary download is unavailable. Builder-stage only — not copied into
+# the final image, so the production image stays slim.
+RUN apk add --no-cache python3 make g++
+
 # Copy package files and install production deps only
 COPY package*.json ./
 RUN npm ci --omit=dev

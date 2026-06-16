@@ -6,6 +6,7 @@ const path = require('path')
 const fs = require('fs')
 const { sendDueReminders } = require('../utils/reminderService')
 const { logAction } = require('../utils/audit')
+const { getBaseUrl } = require('../utils/baseUrl')
 
 const genres = [
   'Art', 
@@ -193,7 +194,7 @@ exports.detail_book = async (req, res) => {
     const book = await Book.findById(req.params.id)
     
     const QRCode = require('qrcode')
-    const bookUrl = `http://localhost:3000/book/${book._id}`
+    const bookUrl = `${getBaseUrl(req)}/book/${book._id}`
     const qrCodeDataUrl = await QRCode.toDataURL(bookUrl)
 
     res.render('admin/book-detail', { book, qrCodeDataUrl, msg: req.flash('msg') })
@@ -549,63 +550,58 @@ exports.send_reminders = async (req, res) => {
 }
 
 exports.import_books = async (req, res) => {
+  const fs = require('fs')
+  const { parseBookFile } = require('../utils/bookImport')
+  let filePath
   try {
     if (!req.files || !req.files.csv_file) {
-      req.flash('msg', 'Please upload a CSV file.')
+      req.flash('msg', 'Please upload a CSV or Excel (.xlsx) file.')
       return res.redirect('/admin/book')
     }
-    
-    const fs = require('fs')
-    const csv = require('csv-parser')
-    const results = []
-    const filePath = req.files.csv_file[0].path
-    
-    fs.createReadStream(filePath)
-      .pipe(csv())
-      .on('data', (data) => results.push(data))
-      .on('end', async () => {
-        try {
-          const booksToInsert = []
-          for (const row of results) {
-            if (!row.title) continue; // Skip empty/invalid rows
-            const categoriesArray = row.categories ? row.categories.split('|').map(c => c.trim()) : []
-            booksToInsert.push({
-              title: row.title,
-              author: row.author || 'Unknown',
-              publish_year: row.publish_year || '2000',
-              description: row.description || '',
-              categories: categoriesArray,
-              isbn: row.isbn,
-              stock: parseInt(row.stock) || 0,
-              page_count: parseInt(row.page_count) || 0,
-              cover_image: row.cover_image || 'default_cover.jpg'
-            })
-          }
-          
-          if (booksToInsert.length > 0) {
-            await Book.insertMany(booksToInsert)
-            await logAction(req.adminUser, 'IMPORT_BOOKS', 'Book', null, `Imported ${booksToInsert.length} books via CSV`, req.ip)
-            req.flash('msg', `${booksToInsert.length} books imported successfully!`)
-          } else {
-            req.flash('msg', 'No valid book data found in the CSV.')
-          }
-          
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
-          res.redirect('/admin/book')
-        } catch (err) {
-          console.log(err)
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
-          req.flash('msg', 'An error occurred while inserting data.')
-          res.redirect('/admin/book')
-        }
-      })
-  } catch (err) {
-    console.log(err)
-    if (req.files && req.files.csv_file && fs.existsSync(req.files.csv_file[0].path)) {
-      const fs = require('fs')
-      fs.unlinkSync(req.files.csv_file[0].path)
+    filePath = req.files.csv_file[0].path
+    const originalName = req.files.csv_file[0].originalname
+
+    // Continue the synthetic-ISBN sequence past any previously imported batch so
+    // re-importing never collides on the unique isbn index.
+    const existing = await Book.find({ isbn: /^CSIT-\d+$/ }).select('isbn').lean()
+    let isbnStart = 1
+    for (const b of existing) {
+      const n = parseInt(b.isbn.split('-')[1], 10)
+      if (Number.isFinite(n) && n >= isbnStart) isbnStart = n + 1
     }
-    req.flash('msg', 'An error occurred during import.')
+
+    const { books, skipped } = parseBookFile(filePath, { defaultStock: 1, isbnStart })
+
+    if (!books.length) {
+      req.flash('msg', 'No valid book rows were found in the uploaded file.')
+      return res.redirect('/admin/book')
+    }
+
+    // ordered:false → a row that clashes with an existing isbn is skipped while
+    // the rest still insert, instead of aborting the whole import.
+    let inserted = 0
+    try {
+      const docs = await Book.insertMany(books, { ordered: false })
+      inserted = docs.length
+    } catch (err) {
+      inserted = (err.insertedDocs && err.insertedDocs.length) || (err.result && err.result.nInserted) || 0
+    }
+    const failed = books.length - inserted
+
+    await logAction(req.adminUser, 'IMPORT_BOOKS', 'Book', null, `Imported ${inserted} books from ${originalName}`, req.ip)
+
+    let msg = `${inserted} book(s) imported successfully.`
+    if (skipped) msg += ` ${skipped} duplicate row(s) skipped.`
+    if (failed) msg += ` ${failed} row(s) failed (likely already in the catalogue).`
+    req.flash('msg', msg)
     res.redirect('/admin/book')
+  } catch (err) {
+    console.error('[AdminController] import_books error:', err)
+    req.flash('msg', `An error occurred during import: ${err.message}`)
+    res.redirect('/admin/book')
+  } finally {
+    if (filePath && fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath) } catch (_) { /* best effort cleanup */ }
+    }
   }
 }

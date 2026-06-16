@@ -1,11 +1,7 @@
 <div class="container my-5">
   <h2 class="mb-4"><i class="bi bi-heart-fill text-danger"></i> My Wishlist</h2>
 
-  <% if (msg && msg.length !== 0) { %>
-    <div class="alert alert-info fw-bold py-2 text-center" role="alert">
-      <%= msg %>
-    </div>
-  <% } %>
+<%- include('../partials/flash-toast') %>
 
   <% if (items.length === 0) { %>
     <div class="alert alert-light border text-center py-5">

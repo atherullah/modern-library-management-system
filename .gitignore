@@ -1,3 +1,16 @@
 node_modules
 .env
 docs.txt
+
+# Thesis / report documents (not part of the app)
+*.docx
+thesis/
+thesis-report.md
+plan-ux.md
+
+# Local tooling, sample data & artifacts (not needed to run/deploy)
+.kiro/
+.playwright-mcp/
+screenshots/
+sample-data/
+tunnel.sh

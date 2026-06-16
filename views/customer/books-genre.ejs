@@ -1,9 +1,5 @@
 <div class="container my-4">
-  <% if (msg.length !== 0) { %>
-    <div class="alert alert-info fw-bold text-center" role="alert">
-      <%= msg %>
-    </div>
-  <% } %>
+<%- include('../partials/flash-toast') %>
   <% if (books.length > 0) { %>
     <div class="row">
       <div class="display-4 text-center">Books by Genre</div>
@@ -21,7 +17,7 @@
                   <p class="fs-6 fw-light mb-0">Created by <%= book.author %></p>
                   <p class="fs-6 fw-light">Categories: <%= book.categories ? book.categories.join(', ') : '' %></p>
                   <% if (book.stock !== 0) { %>
-                    <form class="d-grid gap-2 d-md-block" action="/cart" method="POST">
+                    <form class="d-grid gap-2 d-md-block js-action-form" action="/cart" method="POST">
                       <% if (user) { %>
                         <input type="hidden" name="user_id" value="<%= user.id %>">
                       <% } %>
@@ -48,39 +44,3 @@
   <% } %>
 </div>
 
-<!-- Book Detail Modal -->
-<% books.forEach(book => { %>
-  <div class="modal fade" id="bookDetailModal<%= book.id %>" tabindex="-1" aria-labelledby="bookDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bookDetailModalLabel">Book Detail</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div class="container-fluid">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <img src="<%= book.coverImagePath %>" class="img-fluid">
-                    </div>
-                    <div class="col-md">
-                        <ul class="list-group">
-                            <li class="list-group-item"><h4><%= `${book.title} (${book.publish_year})` %></h4></li>
-                            <li class="list-group-item"><strong>Stock : </strong> <%= book.stock %></li>
-                            <li class="list-group-item"><strong>ISBN : </strong> <%= book.isbn %></li>
-                            <li class="list-group-item"><strong>Author : </strong> <%= book.author %></li>
-                            <li class="list-group-item"><strong>Page Count : </strong> <%= book.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Categories : </strong> <%= book.categories ? book.categories.join(', ') : '' %></li>
-                            <li class="list-group-item"><strong>Description : </strong> <br> <%= book.description %></li>
-                        </ul>
-                    </div>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-  </div>
-<% }) %>

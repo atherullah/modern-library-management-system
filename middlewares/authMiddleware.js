@@ -31,6 +31,11 @@ const adminArea = async (req, res, next) => {
         res.redirect('/')
       } else {
         let user = await User.findById(decodedToken.id)
+        if(!user) {
+          // Token is valid but the user no longer exists (e.g. DB reseeded)
+          res.cookie('jwt', '', { maxAge: 1 })
+          return res.redirect('/')
+        }
         if(user.role === 0) {
           req.adminUser = user  // attach for audit logging
           next()
@@ -57,6 +62,15 @@ const checkUser = (req, res, next) => {
         next()
       } else {
         let user = await User.findById(decodedToken.id)
+        if(!user) {
+          // Token is valid but the user no longer exists (e.g. DB reseeded) —
+          // clear the stale cookie and continue as a logged-out visitor.
+          res.cookie('jwt', '', { maxAge: 1 })
+          res.locals.user = null
+          const settings = await Settings.getGlobal()
+          res.locals.settings = settings
+          return next()
+        }
         let itemCount = await Cart.find({ user: user.id }).countDocuments()
         let wishlistCount = await Wishlist.find({ user: user.id }).countDocuments()
         const settings = await Settings.getGlobal()

@@ -21,8 +21,8 @@
                 <% borrowHistory.forEach((history, i) => { %>
                   <tr>
                     <th scope="row"><%= ++i %></th>
-                    <td><%= history.borrowed_by.name %></td>
-                    <td><%= history.borrowed_book.title %></td>
+                    <td><%= history.borrowed_by ? history.borrowed_by.name : 'N/A' %></td>
+                    <td><%= history.borrowed_book ? history.borrowed_book.title : 'N/A' %></td>
                     <td><%= new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'long', day: '2-digit'}).format(history.borrow_date) %></td>
                     <td><%= new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'long', day: '2-digit'}).format(history.return_date) %></td>
                     <td><%= history.status %><%= /*history.book_returned*/ %></td>

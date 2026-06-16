@@ -1,6 +1,7 @@
 const Book = require('../models/Book')
 const User = require('../models/User')
 const Cart = require('../models/Cart')
+const Review = require('../models/Review')
 const BorrowHistory = require('../models/BorrowHistory')
 const { validationResult } = require('express-validator')
 const path = require('path')
@@ -23,6 +24,71 @@ const genres = [
   'Science'
 ]
 
+// ── Catalog search/filter helpers ───────────────────────────────────────────
+
+// Average rating + review count for a set of books → { '<bookId>': { avg, count } }
+const getRatingsMap = async (bookIds) => {
+  if (!bookIds || bookIds.length === 0) return {}
+  const agg = await Review.aggregate([
+    { $match: { book: { $in: bookIds } } },
+    { $group: { _id: '$book', avg: { $avg: '$rating' }, count: { $sum: 1 } } }
+  ])
+  const map = {}
+  agg.forEach(r => { map[r._id.toString()] = { avg: Math.round(r.avg * 10) / 10, count: r.count } })
+  return map
+}
+
+// Build a Mongo filter from query params: q (title/author/isbn), genre, availability.
+const buildBookFilter = ({ q, genre, availability }) => {
+  const filter = {}
+  if (q) {
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // escape regex metachars
+    const rx = { $regex: safe, $options: 'i' }
+    filter.$or = [{ title: rx }, { author: rx }, { isbn: rx }]
+  }
+  if (genre) filter.categories = genre
+  if (availability === 'in') filter.stock = { $gt: 0 }
+  return filter
+}
+
+const BOOK_SORTS = {
+  title_asc: { title: 1 },
+  title_desc: { title: -1 },
+  newest: { created_at: -1 },
+  oldest: { created_at: 1 }
+}
+
+// Query books with filter + sort (incl. "rating") + optional pagination.
+// Returns Mongoose docs (preserves `.id` / `coverImagePath` virtuals the views rely on).
+const queryBooks = async ({ filter = {}, sort = 'title_asc', page = 1, perPage = null }) => {
+  if (sort === 'rating') {
+    // Rating isn't a stored field — rank via aggregation, then re-fetch docs in order.
+    const ranked = await Book.aggregate([
+      { $match: filter },
+      { $lookup: { from: 'reviews', localField: '_id', foreignField: 'book', as: 'r' } },
+      { $addFields: {
+          avgRating: { $cond: [{ $gt: [{ $size: '$r' }, 0] }, { $avg: '$r.rating' }, 0] },
+          reviewCount: { $size: '$r' }
+      } },
+      { $sort: { avgRating: -1, reviewCount: -1, title: 1 } },
+      { $project: { _id: 1 } }
+    ])
+    const ids = ranked.map(r => r._id)
+    const total = ids.length
+    const pageIds = perPage ? ids.slice((page - 1) * perPage, page * perPage) : ids
+    const docs = await Book.find({ _id: { $in: pageIds } })
+    const byId = {}
+    docs.forEach(d => { byId[d.id] = d })
+    const books = pageIds.map(id => byId[id.toString()]).filter(Boolean)
+    return { books, total }
+  }
+  const total = await Book.countDocuments(filter)
+  let q = Book.find(filter).sort(BOOK_SORTS[sort] || BOOK_SORTS.title_asc)
+  if (perPage) q = q.skip((page - 1) * perPage).limit(perPage)
+  const books = await q
+  return { books, total }
+}
+
 const removeImage = (filePath) => {
   try {
     filePath = path.join(__dirname, '../', filePath)
@@ -37,63 +103,106 @@ const removeImage = (filePath) => {
 
 exports.home = async (req, res) => {
   try {
-    // for popular books
+    // for popular books — normalize to { book, count } and drop any deleted books
     const sortBorrowedBooksByCount = await BorrowHistory.aggregate([
       { $sortByCount: "$borrowed_book" }
     ]).limit(10)
-    const popularBooks = await Book.populate(sortBorrowedBooksByCount, { path: '_id' })
+    const populated = await Book.populate(sortBorrowedBooksByCount, { path: '_id' })
+    const popularBooks = populated
+      .filter(p => p._id)
+      .map(p => ({ book: p._id, count: p.count }))
 
     // for recently added books
     const recentBooks = await Book.find().sort({ created_at: -1 }).limit(12)
 
-    res.render('index', { popularBooks, recentBooks, msg: req.flash('msg') })
+    // ratings for every card on the page
+    const ids = [...popularBooks.map(p => p.book._id), ...recentBooks.map(b => b._id)]
+    const ratings = await getRatingsMap(ids)
+
+    res.render('index', { popularBooks, recentBooks, ratings, msg: req.flash('msg') })
   } catch(err) {
     console.log(err)
     res.redirect('/')
   }
 }
 
-exports.allBooks = (req, res) => {
-  let currentPage = req.params.page || 1
-  let perPage = req.query.perPage || 12
-  let totalBook
+exports.allBooks = async (req, res) => {
+  try {
+    const currentPage = parseInt(req.params.page) || 1
+    const perPage = parseInt(req.query.perPage) || 12
+    const q = (req.query.q || '').trim()
+    const genre = req.query.genre || ''
+    const availability = req.query.availability || ''
+    const sort = req.query.sort || 'title_asc'
 
-  Book.find()
-    .countDocuments()
-    .then(count => {
-      totalBook = count
-      return Book.find()
-        .skip(parseInt(currentPage - 1) * parseInt(perPage))
-        .limit(parseInt(perPage))
-        .sort({ title: 1 })
+    const filter = buildBookFilter({ q, genre, availability })
+    const { books, total } = await queryBooks({ filter, sort, page: currentPage, perPage })
+    const ratings = await getRatingsMap(books.map(b => b._id))
+
+    // Preserve active filters across pagination links.
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    if (genre) params.set('genre', genre)
+    if (availability) params.set('availability', availability)
+    if (sort && sort !== 'title_asc') params.set('sort', sort)
+    const filterQuery = params.toString() ? `?${params.toString()}` : ''
+
+    res.render('customer/books', {
+      books,
+      ratings,
+      q, genre, availability, sort, filterQuery,
+      msg: req.flash('msg'),
+      currentPage,
+      perPage,
+      totalBook: total,
+      totalPage: Math.ceil(total / perPage),
     })
-    .then(books => {
-      res.render('customer/books', {
-        books,
-        msg: req.flash('msg'),
-        currentPage: parseInt(currentPage),
-        perPage: parseInt(perPage),
-        totalBook: parseInt(totalBook),
-        totalPage: Math.ceil(parseInt(totalBook) / parseInt(perPage)),
-      })
-    })
-    .catch(err => {
-      console.log(err)
-      res.redirect('/')
-    })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
 }
 
-exports.searchBook = (req, res) => {
-  Book.find({ title: { $regex: req.query.title || '', $options: 'i' } })
-    .sort({ title: 1 })
-    .then(books => {
-      // console.log(books)
-      res.render('customer/search-book', { books, msg: req.flash('msg') })
+exports.searchBook = async (req, res) => {
+  try {
+    const q = (req.query.q || req.query.title || '').trim() // accept legacy ?title=
+    const genre = req.query.genre || ''
+    const availability = req.query.availability || ''
+    const sort = req.query.sort || (q ? 'relevance' : 'title_asc')
+    const sortKey = sort === 'relevance' ? 'title_asc' : sort
+
+    const filter = buildBookFilter({ q, genre, availability })
+    const { books } = await queryBooks({ filter, sort: sortKey })
+    const ratings = await getRatingsMap(books.map(b => b._id))
+
+    res.render('customer/search-book', {
+      books,
+      ratings,
+      q, genre, availability, sort,
+      resultCount: books.length,
+      msg: req.flash('msg'),
     })
-    .catch(err => {
-      console.log(err)
-      res.redirect('/admin')
-    })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
+}
+
+// JSON endpoint for navbar type-ahead suggestions.
+exports.searchSuggest = async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim()
+    if (q.length < 2) return res.json([])
+    const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const rx = { $regex: safe, $options: 'i' }
+    const books = await Book.find({ $or: [{ title: rx }, { author: rx }, { isbn: rx }] })
+      .select('title author cover_image')
+      .sort({ title: 1 })
+      .limit(8)
+    res.json(books.map(b => ({ id: b.id, title: b.title, author: b.author, cover: b.coverImagePath })))
+  } catch (err) {
+    res.json([])
+  }
 }
 
 exports.booksByGenre = async  (req, res) => {
@@ -115,11 +224,40 @@ exports.booksByGenre = async  (req, res) => {
 
 exports.userProfile = async (req, res) => {
   try {
+    const userId = res.locals.user.id
     const Reservation = require('../models/Reservation')
-    const reservations = await Reservation.find({ user: res.locals.user.id })
-      .populate('book', 'title cover_image')
-      .sort({ createdAt: -1 })
-    res.render('customer/profile', { reservations, msg: req.flash('msg') })
+    const Wishlist = require('../models/Wishlist')
+
+    let [reservations, currentLoans, allHistory, reviewCount, wishlistCount] = await Promise.all([
+      Reservation.find({ user: userId }).populate('book', 'title cover_image').sort({ createdAt: -1 }),
+      BorrowHistory.find({ borrowed_by: userId, status: 'In Progress' }).populate('borrowed_book').sort({ return_date: 1 }),
+      BorrowHistory.find({ borrowed_by: userId }),
+      Review.countDocuments({ user: userId }),
+      Wishlist.countDocuments({ user: userId }),
+    ])
+
+    // Skip records whose book no longer exists (e.g. deleted/reseeded)
+    reservations = reservations.filter(r => r.book)
+    currentLoans = currentLoans.filter(h => h.borrowed_book)
+
+    const returnedCount = allHistory.filter(h => h.status === 'Returned').length
+    const outstandingFines = allHistory
+      .filter(h => !h.fine_paid && h.fine_amount > 0)
+      .reduce((sum, h) => sum + h.fine_amount, 0)
+
+    res.render('customer/profile', {
+      reservations,
+      currentLoans,
+      stats: {
+        currentCount: currentLoans.length,
+        totalBorrowed: allHistory.length,
+        returnedCount,
+        reviewCount,
+        wishlistCount,
+      },
+      outstandingFines: parseFloat(outstandingFines.toFixed(2)),
+      msg: req.flash('msg'),
+    })
   } catch (err) {
     console.log(err)
     res.redirect('/')
@@ -183,19 +321,31 @@ exports.updateProfile = async (req, res) => {
   }
 }
 
-exports.cart = (req, res) => {
-  Cart.find().populate('user').populate('book')
-    .then(result => {
-      res.render('customer/cart', { cartItems: result, msg: req.flash('msg') })
-    })
-    .catch(err => {
-      console.log(err)
-      res.redirect('/')
-    })
+exports.cart = async (req, res) => {
+  try {
+    // Only the current user's items (was fetching every user's cart and filtering in the view)
+    const cartItems = await Cart.find({ user: res.locals.user.id }).populate('book')
+    const outOfStock = cartItems.some(item => !item.book || item.book.stock === 0)
+    res.render('customer/cart', { cartItems, outOfStock, msg: req.flash('msg') })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
 }
 
 exports.postToCart = async (req, res) => {
   const { user_id, book_id, prev_url } = req.body
+
+  // Respond as JSON for AJAX callers (instant toast + badge), otherwise fall
+  // back to the classic flash-message + redirect for no-JS clients.
+  const respond = async (message, type = 'info') => {
+    if (req.xhr) {
+      const itemCount = await Cart.countDocuments({ user: user_id })
+      return res.json({ ok: type === 'success', msg: message, type, itemCount })
+    }
+    req.flash('msg', message)
+    res.redirect(prev_url || '/')
+  }
 
   try {
     const inInventory = await BorrowHistory.find({
@@ -203,32 +353,19 @@ exports.postToCart = async (req, res) => {
       borrowed_book: book_id,
       status: "In Progress"
     })
-    Cart.find({ user: user_id, book: book_id })
-      .then(result => {
-        if(inInventory.length !== 0) {
-          req.flash('msg', 'That book is already in your inventory...')
-          res.redirect(prev_url)
-        } else if(result.length !== 0) {
-          req.flash('msg', 'That book is already in your cart...')
-          res.redirect(prev_url)
-        } else {
-          Cart.create({ user: user_id, book: book_id })
-          .then(result => {
-            req.flash('msg', 'Book has been added to your cart!'),
-            res.redirect(prev_url)
-          })
-          .catch(err => {
-            console.log(err)
-            res.redirect('/')
-          })
-        }
-      })
-      .catch(err => {
-        console.log(err)
-        res.redirect('/')
-      })
+    const existing = await Cart.find({ user: user_id, book: book_id })
+
+    if (inInventory.length !== 0) {
+      return respond('That book is already in your inventory...', 'info')
+    }
+    if (existing.length !== 0) {
+      return respond('That book is already in your cart...', 'info')
+    }
+    await Cart.create({ user: user_id, book: book_id })
+    return respond('Book has been added to your cart!', 'success')
   } catch(err) {
     console.log(err)
+    if (req.xhr) return res.status(500).json({ ok: false, msg: 'Something went wrong.', type: 'danger' })
     res.redirect('/')
   }
 }
@@ -246,15 +383,14 @@ exports.deleteCartItem = async (req, res) => {
   }
 }
 
-exports.getBorrow = (req, res) => {
-  Cart.find().populate('user').populate('book')
-    .then(result => {
-      res.render('customer/borrow', { cartItems: result })
-    })
-    .catch(err => {
-      console.log(err)
-      res.redirect('/')
-    })
+exports.getBorrow = async (req, res) => {
+  try {
+    const cartItems = await Cart.find({ user: res.locals.user.id }).populate('book')
+    res.render('customer/borrow', { cartItems })
+  } catch (err) {
+    console.log(err)
+    res.redirect('/')
+  }
 }
 
 exports.postBorrow = async (req, res) => {
@@ -263,8 +399,7 @@ exports.postBorrow = async (req, res) => {
   if(!errors.isEmpty()) {
     try {
       const user = await User.findById(user_id)
-      const cart = await Cart.find().populate('user').populate('book')
-      // console.log(cart)
+      const cart = await Cart.find({ user: user_id }).populate('book')
       res.render('customer/borrow', {
         errors: errors.array(),
         user,
@@ -329,6 +464,8 @@ exports.borrowedBooks = async (req, res) => {
         }).populate('borrowed_book')
       })
       .then(borrowedBook => {
+        // Skip records whose book no longer exists (e.g. deleted/reseeded)
+        borrowedBook = borrowedBook.filter(h => h.borrowed_book)
         res.render('customer/inventory', { url: req.params.id, borrowedBook, msg: req.flash('msg') })
       })
       .catch(err => {
@@ -383,9 +520,10 @@ exports.returnBook = async (req, res) => {
 
 exports.borrowHistory = async (req, res) => {
   try {
-    const borrowHistory = await BorrowHistory.find({ borrowed_by: req.params.id })
+    const borrowHistory = (await BorrowHistory.find({ borrowed_by: req.params.id })
       .populate('borrowed_book')
-      .sort({ borrow_date: -1 })
+      .sort({ borrow_date: -1 }))
+      .filter(h => h.borrowed_book) // skip records whose book no longer exists
 
     res.render('customer/borrow-history', { url: req.params.id, borrowHistory, msg: req.flash('msg') })
   } catch(err) {
@@ -398,18 +536,45 @@ exports.bookDetail = async (req, res) => {
   try {
     const book = await Book.findById(req.params.id)
     if (!book) return res.redirect('/')
-    
-    // Require Review model here if not in top level
-    const Review = require('../models/Review')
+
     const reviews = await Review.find({ book: book._id }).populate('user', 'name profile_picture').sort({ createdAt: -1 })
-    
-    let averageRating = 0;
+
+    let averageRating = 0
     if (reviews.length > 0) {
       const sum = reviews.reduce((acc, current) => acc + current.rating, 0)
       averageRating = (sum / reviews.length).toFixed(1)
     }
 
-    res.render('customer/book', { book, reviews, averageRating, msg: req.flash('msg') })
+    // ── Recommendations ──
+    // More by this author
+    const moreByAuthor = await Book.find({ author: book.author, _id: { $ne: book._id } }).limit(6)
+
+    // "Readers also enjoyed": co-borrow ranking, falling back to same-genre books.
+    let alsoBorrowed = []
+    const borrowers = await BorrowHistory.distinct('borrowed_by', { borrowed_book: book._id })
+    if (borrowers.length) {
+      const coAgg = await BorrowHistory.aggregate([
+        { $match: { borrowed_by: { $in: borrowers }, borrowed_book: { $ne: book._id } } },
+        { $group: { _id: '$borrowed_book', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 6 }
+      ])
+      const ids = coAgg.map(c => c._id)
+      const docs = await Book.find({ _id: { $in: ids } })
+      const byId = {}
+      docs.forEach(d => { byId[d.id] = d })
+      alsoBorrowed = ids.map(id => byId[id.toString()]).filter(Boolean)
+    }
+    if (!alsoBorrowed.length && book.categories && book.categories.length) {
+      alsoBorrowed = await Book.find({ categories: { $in: book.categories }, _id: { $ne: book._id } }).limit(6)
+    }
+
+    const recRatings = await getRatingsMap([
+      ...moreByAuthor.map(b => b._id),
+      ...alsoBorrowed.map(b => b._id)
+    ])
+
+    res.render('customer/book', { book, reviews, averageRating, moreByAuthor, alsoBorrowed, recRatings, msg: req.flash('msg') })
   } catch (err) {
     console.log(err)
     res.redirect('/')
@@ -499,9 +664,10 @@ exports.chat = async (req, res) => {
 exports.getWishlist = async (req, res) => {
   try {
     const Wishlist = require('../models/Wishlist')
-    const items = await Wishlist.find({ user: res.locals.user.id })
+    const items = (await Wishlist.find({ user: res.locals.user.id })
       .populate('book')
-      .sort({ created_at: -1 })
+      .sort({ created_at: -1 }))
+      .filter(item => item.book) // skip records whose book no longer exists
     res.render('customer/wishlist', { items, msg: req.flash('msg') })
   } catch (err) {
     console.log(err)
@@ -511,18 +677,27 @@ exports.getWishlist = async (req, res) => {
 
 exports.addToWishlist = async (req, res) => {
   const { user_id, book_id, prev_url } = req.body
+  const Wishlist = require('../models/Wishlist')
+
+  const respond = async (message, type = 'info') => {
+    if (req.xhr) {
+      const wishlistCount = await Wishlist.countDocuments({ user: user_id })
+      return res.json({ ok: type === 'success', msg: message, type, wishlistCount })
+    }
+    req.flash('msg', message)
+    res.redirect(prev_url || '/wishlist')
+  }
+
   try {
-    const Wishlist = require('../models/Wishlist')
     const existing = await Wishlist.findOne({ user: user_id, book: book_id })
     if (existing) {
-      req.flash('msg', 'That book is already in your wishlist.')
-      return res.redirect(prev_url || '/wishlist')
+      return respond('That book is already in your wishlist.', 'info')
     }
     await Wishlist.create({ user: user_id, book: book_id })
-    req.flash('msg', 'Book added to your wishlist!')
-    res.redirect(prev_url || '/wishlist')
+    return respond('Book added to your wishlist!', 'success')
   } catch (err) {
     console.log(err)
+    if (req.xhr) return res.status(500).json({ ok: false, msg: 'Could not add book to wishlist.', type: 'danger' })
     req.flash('msg', 'Could not add book to wishlist.')
     res.redirect(prev_url || '/wishlist')
   }

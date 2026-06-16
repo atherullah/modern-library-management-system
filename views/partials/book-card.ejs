@@ -1,0 +1,56 @@
+<%
+  // Reusable catalog card. Expects:
+  //   book    — a Book document (id, coverImagePath, title, author, stock)
+  //   rating  — { avg, count } or undefined/null
+  //   prevUrl — value for the add-to-cart form's prev_url (optional, default '/books')
+  //   footer  — optional small footer text (e.g. "Borrowed 3 time(s)")
+  const _rating = (typeof rating !== 'undefined') ? rating : null
+  const _prev = (typeof prevUrl !== 'undefined') ? prevUrl : '/books'
+  const _footer = (typeof footer !== 'undefined') ? footer : null
+%>
+<div class="card h-100">
+  <a class="cover-link mt-2" href="/book/<%= book.id %>">
+    <img src="<%= book.coverImagePath %>" class="card-img" alt="<%= book.title %>">
+  </a>
+  <div class="card-body d-flex flex-column p-2">
+    <a class="card-title fs-6 fw-semibold book-title-clamp d-block text-reset text-decoration-none mb-1" href="/book/<%= book.id %>" title="<%= book.title %>"><%= book.title %></a>
+    <p class="text-muted small mb-1 text-truncate" title="<%= book.author %>">by <%= book.author %></p>
+
+    <div class="small mb-2">
+      <% if (_rating) { %>
+        <span class="text-warning">&#9733;</span><span class="fw-semibold"><%= _rating.avg %></span>
+        <span class="text-muted">(<%= _rating.count %>)</span>
+      <% } else { %>
+        <span class="text-muted">No ratings yet</span>
+      <% } %>
+    </div>
+
+    <div class="mb-2">
+      <% if (book.stock > 5) { %>
+        <span class="badge bg-success">In stock</span>
+      <% } else if (book.stock > 0) { %>
+        <span class="badge bg-warning text-dark">Only <%= book.stock %> left</span>
+      <% } else { %>
+        <span class="badge bg-secondary">Out of stock</span>
+      <% } %>
+    </div>
+
+    <div class="mt-auto">
+      <% if (book.stock !== 0) { %>
+        <form class="cart js-action-form d-grid" action="/cart" method="POST">
+          <% if (user) { %><input type="hidden" name="user_id" value="<%= user.id %>"><% } %>
+          <input type="hidden" name="book_id" value="<%= book.id %>">
+          <input type="hidden" name="prev_url" value="<%= _prev %>">
+          <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-cart4"></i> Add to Cart</button>
+        </form>
+      <% } else { %>
+        <div class="d-grid">
+          <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Out of Stock</button>
+        </div>
+      <% } %>
+    </div>
+  </div>
+  <% if (_footer) { %>
+    <div class="card-footer text-center p-1"><small class="text-muted"><%= _footer %></small></div>
+  <% } %>
+</div>

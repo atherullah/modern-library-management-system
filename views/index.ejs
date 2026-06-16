@@ -1,30 +1,50 @@
 <!-- Carousel -->
-<div id="carouselCaptions" class="carousel slide" data-bs-ride="carousel">
+<div id="carouselCaptions" class="carousel slide hero-carousel" data-bs-ride="carousel">
   <div class="carousel-indicators">
     <button type="button" data-bs-target="#carouselCaptions" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
     <button type="button" data-bs-target="#carouselCaptions" data-bs-slide-to="1" aria-label="Slide 2"></button>
     <button type="button" data-bs-target="#carouselCaptions" data-bs-slide-to="2" aria-label="Slide 3"></button>
+    <button type="button" data-bs-target="#carouselCaptions" data-bs-slide-to="3" aria-label="Slide 4"></button>
   </div>
   <div class="carousel-inner">
-    <div class="carousel-item active" data-bs-interval="3000">
-      <img src="public/assets/book-library.jpg" class="d-block w-100 carousel-img" alt="library">
-      <div class="carousel-caption d-none d-md-block">
-        <h5>Second slide label</h5>
-        <p>Background photo created by jcomp - <a href='https://www.freepik.com/photos/background'>www.freepik.com</a></p>
+    <div class="carousel-item active" data-bs-interval="5000">
+      <img src="/public/assets/hero-shelves.jpg" class="d-block w-100 carousel-img" alt="Wall of books with a wooden library ladder">
+      <div class="carousel-caption text-start">
+        <h2 class="fw-bold">Discover your next great read</h2>
+        <p class="d-none d-md-block">Thousands of titles across every genre — browse, borrow, and enjoy.</p>
+        <a href="/books" class="btn btn-light btn-lg mt-2"><i class="bi bi-collection"></i> Browse the catalog</a>
       </div>
     </div>
-    <div class="carousel-item" data-bs-interval="3000">
-      <img src="public/assets/library-with-books.jpg" class="d-block w-100 carousel-img" alt="library">
-      <div class="carousel-caption d-none d-md-block">
-        <h5>First slide label</h5>
-        <p>Book photo created by ikaika - <a href='https://www.freepik.com/photos/book'>www.freepik.com</a></p>
+    <div class="carousel-item" data-bs-interval="5000">
+      <img src="/public/assets/hero-stairs.jpg" class="d-block w-100 carousel-img" alt="Cosy, warmly-lit library with colourful book-lined stairs">
+      <div class="carousel-caption text-start">
+        <h2 class="fw-bold">A cosy corner for every reader</h2>
+        <p class="d-none d-md-block">From timeless classics to the latest releases — find the perfect book and settle in.</p>
+        <a href="/books" class="btn btn-light btn-lg mt-2"><i class="bi bi-search"></i> Explore the collection</a>
       </div>
     </div>
-    <div class="carousel-item" data-bs-interval="3000">
-      <img src="public/assets/book-library.jpg" class="d-block w-100 carousel-img" alt="library">
-      <div class="carousel-caption d-none d-md-block">
-        <h5>Third slide label</h5>
-        <p>Background photo created by jcomp - <a href='https://www.freepik.com/photos/background'>www.freepik.com</a></p>
+    <div class="carousel-item" data-bs-interval="5000">
+      <img src="/public/assets/hero-nook.jpg" class="d-block w-100 carousel-img" alt="Quiet reading nook by a window surrounded by bookshelves">
+      <div class="carousel-caption text-start">
+        <h2 class="fw-bold">Borrowing made effortless</h2>
+        <p class="d-none d-md-block">Add books to your cart, check out in seconds, and track everything from your profile.</p>
+        <% if (!user) { %>
+          <a href="/register" class="btn btn-light btn-lg mt-2"><i class="bi bi-person-plus"></i> Join the library</a>
+        <% } else { %>
+          <a href="/inventory/<%= user.id %>" class="btn btn-light btn-lg mt-2"><i class="bi bi-journal-bookmark"></i> My borrowed books</a>
+        <% } %>
+      </div>
+    </div>
+    <div class="carousel-item" data-bs-interval="5000">
+      <img src="/public/assets/hero-study.jpg" class="d-block w-100 carousel-img" alt="Warm brick-walled study with bookshelves and plants by a window">
+      <div class="carousel-caption text-start">
+        <h2 class="fw-bold">Read more, worry less</h2>
+        <p class="d-none d-md-block">Build a wishlist, reserve titles, and get a friendly reminder before anything's due.</p>
+        <% if (user) { %>
+          <a href="/wishlist" class="btn btn-light btn-lg mt-2"><i class="bi bi-heart"></i> View your wishlist</a>
+        <% } else { %>
+          <a href="/books" class="btn btn-light btn-lg mt-2"><i class="bi bi-collection"></i> Start browsing</a>
+        <% } %>
       </div>
     </div>
   </div>
@@ -43,41 +63,17 @@
   <div class="container my-4">
     <div class="row d-flex justify-content-center">
       <div class="col-md-11">
-        <% if (msg.length !== 0) { %>
-          <div class="alert alert-info fw-bold text-center" role="alert">
-            <%= msg %>
-          </div>
-        <% } %>
+<%- include('partials/flash-toast') %>
 
         <!-- Popular Books -->
         <div class="card mb-3">
           <div class="card-body">
             <h2 class="display-6 fw-normal text-center mb-4">Popular Books</h2>
-            <% if (typeof popularBooks !== 'undefined') { %>
+            <% if (typeof popularBooks !== 'undefined' && popularBooks.length > 0) { %>
               <div class="row slider mx-4">
-                <% popularBooks.forEach(book => { %>
-                  <div class="card">
-                    <img src="<%= book._id.coverImagePath %>" alt="<%= book._id.title %>" id="img-pointer" class="card-img mt-2" onclick="window.location.href='/book/<%= book._id.id %>'">
-                    <div class="card-body p-2">
-                      <p class="card-title mx-3 fw-bold" id="book_title" title="<%= book._id.title %>"><%= book._id.title %></p>
-                      <% if (book._id.stock !== 0) { %>
-                        <form class="cart d-grid mx-3" action="/cart" method="POST">
-                          <% if (user) { %>
-                            <input type="hidden" name="user_id" value="<%= user.id %>">
-                          <% } %>
-                          <input type="hidden" name="book_id" value="<%= book._id.id %>">
-                          <input type="hidden" name="prev_url" value="/">
-                          <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-cart4"></i> Add to Cart</button>
-                        </form>
-                      <% } else { %>
-                        <div class="d-grid text-center mx-3">
-                          <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Out of Stock</button>
-                        </div>
-                      <% } %>
-                    </div>
-                    <div class="card-footer text-center">
-                      <small class="text-muted">Borrowed <%= book.count %> time(s)</small>
-                    </div>
+                <% popularBooks.forEach(p => { %>
+                  <div>
+                    <%- include('partials/book-card', { book: p.book, rating: ratings[p.book.id], prevUrl: '/', footer: 'Borrowed ' + p.count + ' time(s)' }) %>
                   </div>
                 <% }) %>
               </div>
@@ -91,35 +87,16 @@
         <div class="card m-0">
           <div class="card-body">
             <h2 class="display-6 fw-normal text-center my-4">Recently Added Books</h2>
-            <% if (typeof recentBooks !== 'undefined') { %>
+            <% if (typeof recentBooks !== 'undefined' && recentBooks.length > 0) { %>
               <div class="row d-flex justify-content-center">
                 <% recentBooks.forEach(book => { %>
                   <div class="col-lg-2 col-md-4 col-sm-6 col-xs-3 my-2" style="width: 11.5rem;">
-                    <div class="card">
-                      <img src="<%= book.coverImagePath %>" id="img-pointer" class="card-img mt-2" alt="<%= book.title %>" onclick="window.location.href='/book/<%= book.id %>'">
-                      <div class="card-body">
-                        <h5 class="card-title fs-6" id="book_title" title="<%= book.title %>"><%= book.title %></h5>
-                        <% if (book.stock !== 0) { %>
-                          <form class="cart d-grid mx-auto mb-0" action="/cart" method="POST">
-                            <% if (user) { %>
-                              <input type="hidden" name="user_id" value="<%= user.id %>">
-                            <% } %>
-                            <input type="hidden" name="book_id" value="<%= book.id %>">
-                            <input type="hidden" name="prev_url" value="/">
-                            <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-cart4"></i> Add to Cart</button>
-                          </form>
-                        <% } else { %>
-                          <div class="d-grid text-center">
-                            <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Out of Stock</button>
-                          </div>
-                        <% } %>
-                      </div>
-                    </div>
+                    <%- include('partials/book-card', { book: book, rating: ratings[book.id], prevUrl: '/' }) %>
                   </div>
                 <% }) %>
               </div>
             <% } else { %>
-              <p class="text-center">Looks like there are no book yet...</p>
+              <p class="text-center">Looks like there are no books yet...</p>
             <% } %>
           </div>
         </div>
@@ -127,76 +104,3 @@
     </div>
   </div>
 </div>
-<!-- Recently Added Book Detail Modal -->
-<% recentBooks.forEach(book => { %>
-  <div class="modal fade" id="recentBookDetailModal<%= book.id %>" tabindex="-1" aria-labelledby="bookDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bookDetailModalLabel">Book Detail</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div class="container-fluid">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <img src="<%= book.coverImagePath %>" class="img-fluid card-img">
-                    </div>
-                    <div class="col-md">
-                        <ul class="list-group">
-                            <li class="list-group-item"><h4><%= `${book.title} (${book.publish_year})` %></h4></li>
-                            <li class="list-group-item"><strong>Stock : </strong> <%= book.stock %></li>
-                            <li class="list-group-item"><strong>ISBN : </strong> <%= book.isbn %></li>
-                            <li class="list-group-item"><strong>Author : </strong> <%= book.author %></li>
-                            <li class="list-group-item"><strong>Page Count : </strong> <%= book.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Categories : </strong> <%= book.categories ? book.categories.join(', ') : '' %></li>
-                            <li class="list-group-item"><strong>Description : </strong> <br> <%= book.description %></li>
-                        </ul>
-                    </div>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-  </div>
-<% }) %>
-
-<!-- Popular Book Detail Modal -->
-<% popularBooks.forEach(book => { %>
-  <div class="modal fade" id="popularBookDetailModal<%= book._id.id %>" tabindex="-1" aria-labelledby="bookDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bookDetailModalLabel">Book Detail</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div class="container-fluid">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <img src="<%= book._id.coverImagePath %>" class="img-fluid card-img">
-                    </div>
-                    <div class="col-md">
-                        <ul class="list-group">
-                            <li class="list-group-item"><h4><%= `${book._id.title} (${book._id.publish_year})` %></h4></li>
-                            <li class="list-group-item"><strong>Stock : </strong> <%= book._id.stock %></li>
-                            <li class="list-group-item"><strong>ISBN : </strong> <%= book._id.isbn %></li>
-                            <li class="list-group-item"><strong>Author : </strong> <%= book._id.author %></li>
-                            <li class="list-group-item"><strong>Page Count : </strong> <%= book._id.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Categories : </strong> <%= book._id.categories ? book._id.categories.join(', ') : '' %></li>
-                            <li class="list-group-item"><strong>Description : </strong> <br> <%= book._id.description %></li>
-                        </ul>
-                    </div>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-  </div>
-<% }) %>

@@ -1,78 +1,99 @@
-<div class="container mt-5 mb-5">
-  <div class="row">
-    <div class="col-md-8 text-center mx-auto">
-      <div class="bg-light border rounded-3 p-5">
-        <h1 class="display-4 mb-5">Borrow Books</h1>
-        <div class="table-responsive-md pb-3">
-          <table class="table table-hover text-center">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Cover Image</th>
-                <th scope="col">Title</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% cartItems.filter(item => item.user.id === user.id).map((item, i) => { %>
-                <tr>
-                  <th scope="row"><%= ++i %></th>
-                  <th><img src="<%= item.book.coverImagePath %>" alt="<%= item.book.title %>" width="75" height="100"></th>
-                  <td><%= item.book.title %></td>
-                </tr>
-              <% }) %>
-            </tbody>
-          </table>
-          <% if (cartItems.filter(item => item.user.id === user.id).length > 0) { %>
-            <form action="/borrow" method="POST" class="row g-3 text-start">
+<div class="container my-5">
+  <h1 class="h2 mb-4"><i class="bi bi-journal-arrow-down"></i> Borrow Books</h1>
+
+  <% if (!cartItems || cartItems.length === 0) { %>
+    <div class="text-center py-5 bg-light border rounded-3">
+      <i class="bi bi-cart-x" style="font-size:3rem;color:#adb5bd;"></i>
+      <h4 class="mt-3">Nothing to borrow</h4>
+      <p class="text-muted mb-3">Your cart is empty — add some books first.</p>
+      <a href="/books" class="btn btn-primary"><i class="bi bi-collection"></i> Browse books</a>
+    </div>
+  <% } else { %>
+    <div class="row g-4">
+      <!-- Books being borrowed -->
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white fw-semibold"><%= cartItems.length %> book<%= cartItems.length === 1 ? '' : 's' %> to borrow</div>
+          <ul class="list-group list-group-flush">
+            <% cartItems.forEach(item => { %>
+              <% if (item.book) { %>
+                <li class="list-group-item d-flex align-items-center gap-3 py-3">
+                  <img src="<%= item.book.coverImagePath %>" alt="<%= item.book.title %>" width="48" height="68" style="object-fit:cover;border-radius:4px;">
+                  <div class="flex-grow-1" style="min-width:0;">
+                    <span class="fw-semibold d-block text-truncate"><%= item.book.title %></span>
+                    <span class="small text-muted">by <%= item.book.author %></span>
+                  </div>
+                  <% if (item.book.stock === 0) { %><span class="badge bg-danger">Out of stock</span><% } %>
+                </li>
+              <% } %>
+            <% }) %>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Loan details -->
+      <div class="col-lg-5">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white fw-semibold">Loan Details</div>
+          <div class="card-body">
+            <form action="/borrow" method="POST">
               <input type="hidden" name="user_id" value="<%= user.id %>">
-              <div class="col-md-6">
+              <div class="mb-3">
                 <label for="borrowDate" class="form-label">Borrow Date</label>
                 <input type="date" class="form-control" id="borrowDate" name="borrowDate" readonly>
               </div>
-              <div class="col-md-6">
+              <div class="mb-2">
                 <label for="returnDate" class="form-label">Return Date</label>
                 <input type="date" class="form-control" id="returnDate" name="returnDate" required>
               </div>
+              <div id="loan-hint" class="form-text mb-3"><i class="bi bi-info-circle"></i> Loans run 1–30 days. Default is 14 days.</div>
               <% if (typeof errors !== 'undefined') { %>
                 <% errors.forEach(err => { %>
                   <% if (err.param === 'returnDate') { %>
-                    <p class="text-danger fw-bold mb-0"><%= err.msg %></p>
+                    <div class="alert alert-danger py-2 small mb-3"><%= err.msg %></div>
                   <% } %>
                 <% }) %>
               <% } %>
-              <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-0">
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle"></i> Confirm Borrow</button>
                 <a href="/cart" class="btn btn-outline-secondary">Back to Cart</a>
-                <button type="submit" class="btn btn-outline-primary">Confirm Borrow</button>
               </div>
             </form>
-          <% } %>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  <% } %>
 </div>
 
 <script>
-  const getDate = () => {
-    let today = new Date()
-    let dd = today.getDate()
-    let mm = today.getMonth() + 1   // +1 because start from 0
-    let yyyy = today.getFullYear()
-    
-    if(dd < 10) {
-        dd = '0' + dd
-    } 
-    if(mm < 10) {
-        mm = '0' + mm
-    } 
+  (function () {
+    const fmt = (d) => {
+      const z = (n) => String(n).padStart(2, '0')
+      return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate())
+    }
+    const borrow = document.getElementById('borrowDate')
+    const ret = document.getElementById('returnDate')
+    const hint = document.getElementById('loan-hint')
+    if (!borrow || !ret) return
 
-    today = yyyy + '-' + mm + '-' + dd;
-    // console.log(today);
-    console.log(new Date() - new Date())
-    document.getElementById("borrowDate").value = today;
-  }
+    const today = new Date()
+    const addDays = (n) => { const d = new Date(today); d.setDate(d.getDate() + n); return d }
 
-  window.onload = function() {
-    getDate();
-  };
+    borrow.value = fmt(today)
+    ret.min = fmt(addDays(1))    // at least 1 day
+    ret.max = fmt(addDays(30))   // at most 30 days (matches server validation)
+    if (!ret.value) ret.value = fmt(addDays(14)) // sensible default
+
+    function updateHint() {
+      if (!hint) return
+      if (!ret.value) { hint.innerHTML = '<i class="bi bi-info-circle"></i> Loans run 1–30 days.'; return }
+      const days = Math.round((new Date(ret.value) - new Date(borrow.value)) / (1000 * 60 * 60 * 24))
+      const due = new Date(ret.value)
+      hint.innerHTML = '<i class="bi bi-calendar-check"></i> Loan period: <strong>' + days + ' day' + (days === 1 ? '' : 's') +
+        '</strong> &middot; Due <strong>' + due.toLocaleDateString() + '</strong>'
+    }
+    ret.addEventListener('change', updateHint)
+    updateHint()
+  })()
 </script>

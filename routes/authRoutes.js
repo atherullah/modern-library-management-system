@@ -21,12 +21,20 @@ router.post('/forgot-password', checkLogin, authController.forgot_password_post)
 router.get('/reset-password/:token', checkLogin, authController.reset_password_get)
 router.post('/reset-password/:token', checkLogin, authController.reset_password_post)
 
-// Google OAuth
+// Google OAuth — only live when credentials are configured (see utils/passport.js).
+// Without them the strategy is never registered, so guard to avoid a 500.
+const requireGoogle = (req, res, next) => {
+  if (!passport.googleEnabled) return res.redirect('/login')
+  next()
+}
+
 router.get('/auth/google',
+  requireGoogle,
   passport.authenticate('google', { scope: ['profile', 'email'] })
 )
 
 router.get('/auth/google/callback',
+  requireGoogle,
   passport.authenticate('google', { failureRedirect: '/login', session: false }),
   (req, res) => {
     // Issue JWT cookie same as regular login

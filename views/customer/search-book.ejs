@@ -1,38 +1,57 @@
 <div class="container my-4">
-  <% if (msg.length !== 0) { %>
-    <div class="alert alert-info fw-bold text-center" role="alert">
-      <%= msg %>
-    </div>
-  <% } %>
+<%- include('../partials/flash-toast') %>
+
+  <h1 class="display-5 text-center mb-4">Search the Catalog</h1>
+
+  <%- include('../partials/book-filters', { filterAction: '/search', showSearch: true }) %>
+
+  <% const count = (typeof resultCount !== 'undefined') ? resultCount : books.length %>
+  <p class="text-muted small mb-3">
+    <%= count %> result<%= count === 1 ? '' : 's' %><% if (typeof q !== 'undefined' && q) { %> for "<strong><%= q %></strong>"<% } %>
+  </p>
+
   <% if (books.length > 0) { %>
     <div class="row">
-      <div class="display-4 pb-4 text-center">Search Results</div>
       <% books.forEach(book => { %>
+        <% const r = (typeof ratings !== 'undefined' && ratings[book.id]) ? ratings[book.id] : null %>
         <div class="col-md-6">
           <div class="bg-light card mb-3">
             <div class="card-body">
               <div class="row">
                 <div class="col-md-3 d-flex justify-content-center my-2">
-                  <img src="<%= book.coverImagePath %>" alt="<%= book.title %>" class="cover-img">
+                  <a href="/book/<%= book.id %>" class="cover-link">
+                    <img src="<%= book.coverImagePath %>" alt="<%= book.title %>" class="cover-img">
+                  </a>
                 </div>
-                <div class="col-md-9 justify-content-center">
-                  <p class="fs-5 fw-normal mb-0"><%= book.title %></p>
-                  <p class="fs-6 fw-light mb-0">Created by <%= book.author %></p>
-                  <p class="fs-6 fw-light">Categories: <%= book.categories ? book.categories.join(', ') : '' %></p>
+                <div class="col-md-9">
+                  <a href="/book/<%= book.id %>" class="fs-5 fw-semibold text-reset text-decoration-none d-block"><%= book.title %></a>
+                  <p class="fs-6 fw-light mb-1">by <%= book.author %></p>
+                  <div class="mb-1">
+                    <% if (r) { %>
+                      <span class="text-warning">&#9733;</span> <span class="fw-semibold"><%= r.avg %></span>
+                      <span class="text-muted small">(<%= r.count %> review<%= r.count === 1 ? '' : 's' %>)</span>
+                    <% } else { %>
+                      <span class="text-muted small">No ratings yet</span>
+                    <% } %>
+                    <% if (book.stock > 0) { %>
+                      <span class="badge bg-success ms-2"><%= book.stock %> in stock</span>
+                    <% } else { %>
+                      <span class="badge bg-secondary ms-2">Out of stock</span>
+                    <% } %>
+                  </div>
+                  <p class="fs-6 fw-light text-muted mb-2">Categories: <%= book.categories ? book.categories.join(', ') : '' %></p>
                   <% if (book.stock !== 0) { %>
-                    <form class="d-grid gap-2 d-md-block" action="/cart" method="POST">
-                      <% if (user) { %>
-                        <input type="hidden" name="user_id" value="<%= user.id %>">
-                      <% } %>
+                    <form class="d-grid gap-2 d-md-block js-action-form" action="/cart" method="POST">
+                      <% if (user) { %><input type="hidden" name="user_id" value="<%= user.id %>"><% } %>
                       <input type="hidden" name="book_id" value="<%= book.id %>">
                       <input type="hidden" name="prev_url" value="/search">
                       <a class="btn btn-outline-info" href="/book/<%= book.id %>">More Info</a>
-                      <button class="btn btn-outline-primary" type="submit">Add to Cart</button>
+                      <button class="btn btn-outline-primary" type="submit"><i class="bi bi-cart4"></i> Add to Cart</button>
                     </form>
                   <% } else { %>
-                    <div class="d-grid text-center">
-                      <a class="btn btn-outline-info btn-sm mb-1" href="/book/<%= book.id %>">More Info</a>
-                      <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Out of Stock</button>
+                    <div class="d-grid gap-2 d-md-block">
+                      <a class="btn btn-outline-info" href="/book/<%= book.id %>">More Info</a>
+                      <button class="btn btn-outline-secondary" type="button" disabled>Out of Stock</button>
                     </div>
                   <% } %>
                 </div>
@@ -43,43 +62,11 @@
       <% }) %>
     </div>
   <% } else { %>
-    <p>Oops... The book you're looking for cannot be found...</p>
+    <div class="text-center py-5">
+      <i class="bi bi-emoji-frown" style="font-size:2.5rem;color:#adb5bd;"></i>
+      <p class="lead text-muted mt-3 mb-1">No books found<% if (typeof q !== 'undefined' && q) { %> for "<strong><%= q %></strong>"<% } %>.</p>
+      <p class="text-muted">Try a different keyword, or adjust the filters above.</p>
+      <a href="/books" class="btn btn-outline-secondary btn-sm">Browse all books</a>
+    </div>
   <% } %>
 </div>
-
-<!-- Book Detail Modal -->
-<% books.forEach(book => { %>
-  <div class="modal fade" id="bookDetailModal<%= book.id %>" tabindex="-1" aria-labelledby="bookDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="bookDetailModalLabel">Book Detail</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <div class="container-fluid">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <img src="<%= book.coverImagePath %>" class="img-fluid">
-                    </div>
-                    <div class="col-md">
-                        <ul class="list-group">
-                            <li class="list-group-item"><h4><%= `${book.title} (${book.publish_year})` %></h4></li>
-                            <li class="list-group-item"><strong>Stock : </strong> <%= book.stock %></li>
-                            <li class="list-group-item"><strong>ISBN : </strong> <%= book.isbn %></li>
-                            <li class="list-group-item"><strong>Author : </strong> <%= book.author %></li>
-                            <li class="list-group-item"><strong>Page Count : </strong> <%= book.page_count %> pages</li>
-                            <li class="list-group-item"><strong>Categories : </strong> <%= book.categories ? book.categories.join(', ') : '' %></li>
-                            <li class="list-group-item"><strong>Description : </strong> <br> <%= book.description %></li>
-                        </ul>
-                    </div>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-  </div>
-<% }) %>

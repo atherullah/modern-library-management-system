@@ -1,9 +1,5 @@
 <div class="container my-5">
-  <% if (msg && msg.length !== 0) { %>
-    <div class="alert alert-info fw-bold py-2 text-center" role="alert">
-      <%= msg %>
-    </div>
-  <% } %>
+<%- include('../partials/flash-toast') %>
 
   <div class="row">
     <!-- Book Image -->
@@ -41,7 +37,7 @@
 
       <div class="mt-4 d-flex flex-wrap gap-2">
         <% if (book.stock > 0) { %>
-          <form class="d-inline-block" action="/cart" method="POST">
+          <form class="d-inline-block js-action-form" action="/cart" method="POST">
             <% if (user) { %>
               <input type="hidden" name="user_id" value="<%= user.id %>">
             <% } %>
@@ -58,7 +54,7 @@
           </form>
         <% } %>
         <% if (user) { %>
-          <form class="d-inline-block" action="/wishlist" method="POST">
+          <form class="d-inline-block js-action-form" action="/wishlist" method="POST">
             <input type="hidden" name="user_id" value="<%= user.id %>">
             <input type="hidden" name="book_id" value="<%= book.id %>">
             <input type="hidden" name="prev_url" value="/book/<%= book.id %>">
@@ -85,14 +81,19 @@
               <input type="hidden" name="user_id" value="<%= user.id %>">
               
               <div class="mb-3">
-                <label class="form-label fw-bold">Rating</label>
-                <select class="form-select w-auto" name="rating" required>
-                  <option value="5">5 - Excellent</option>
-                  <option value="4">4 - Very Good</option>
-                  <option value="3">3 - Good</option>
-                  <option value="2">2 - Fair</option>
-                  <option value="1">1 - Poor</option>
-                </select>
+                <label class="form-label fw-bold d-block">Rating</label>
+                <div class="star-rating" role="radiogroup" aria-label="Star rating">
+                  <input type="radio" id="star5" name="rating" value="5" required>
+                  <label for="star5" title="Excellent" aria-label="5 stars"><i class="bi bi-star-fill"></i></label>
+                  <input type="radio" id="star4" name="rating" value="4">
+                  <label for="star4" title="Very Good" aria-label="4 stars"><i class="bi bi-star-fill"></i></label>
+                  <input type="radio" id="star3" name="rating" value="3">
+                  <label for="star3" title="Good" aria-label="3 stars"><i class="bi bi-star-fill"></i></label>
+                  <input type="radio" id="star2" name="rating" value="2">
+                  <label for="star2" title="Fair" aria-label="2 stars"><i class="bi bi-star-fill"></i></label>
+                  <input type="radio" id="star1" name="rating" value="1">
+                  <label for="star1" title="Poor" aria-label="1 star"><i class="bi bi-star-fill"></i></label>
+                </div>
               </div>
               
               <div class="mb-3">
@@ -100,7 +101,7 @@
                 <textarea class="form-control" name="comment" rows="3" placeholder="What did you think about this book?" required></textarea>
               </div>
               
-              <button type="submit" class="btn btn-dark">Submit Review</button>
+              <button type="submit" class="btn btn-primary">Submit Review</button>
             </form>
           </div>
         </div>
@@ -116,7 +117,7 @@
           <div class="card mb-3 border-0 shadow-sm">
             <div class="card-body d-flex">
               <div class="me-3">
-                <img src="/images/profiles/<%= review.user.profile_picture %>" alt="avatar" class="rounded-circle" width="50" height="50" style="object-fit: cover;">
+                <img src="<%= review.user.profilePicturePath %>" alt="avatar" class="rounded-circle" width="50" height="50" style="object-fit: cover;">
               </div>
               <div class="flex-grow-1">
                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -138,4 +139,33 @@
       <% } %>
     </div>
   </div>
+
+  <!-- Recommendations -->
+  <% if ((typeof moreByAuthor !== 'undefined' && moreByAuthor.length) || (typeof alsoBorrowed !== 'undefined' && alsoBorrowed.length)) { %>
+    <hr class="my-5">
+    <% if (typeof moreByAuthor !== 'undefined' && moreByAuthor.length) { %>
+      <section class="mb-5">
+        <h3 class="mb-3"><i class="bi bi-person-lines-fill"></i> More by <%= book.author %></h3>
+        <div class="row g-3 justify-content-center justify-content-md-start">
+          <% moreByAuthor.forEach(b => { %>
+            <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+              <%- include('../partials/book-card', { book: b, rating: recRatings[b.id], prevUrl: '/book/' + book.id }) %>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+    <% if (typeof alsoBorrowed !== 'undefined' && alsoBorrowed.length) { %>
+      <section class="mb-5">
+        <h3 class="mb-3"><i class="bi bi-people-fill"></i> Readers also enjoyed</h3>
+        <div class="row g-3 justify-content-center justify-content-md-start">
+          <% alsoBorrowed.forEach(b => { %>
+            <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+              <%- include('../partials/book-card', { book: b, rating: recRatings[b.id], prevUrl: '/book/' + book.id }) %>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+  <% } %>
 </div>

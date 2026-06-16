@@ -1,0 +1,46 @@
+<%
+  // Expects: filterAction (string), showSearch (bool). Reads current values from
+  // q / genre / availability / sort locals (all optional). genres from res.locals.
+  const _q = typeof q !== 'undefined' ? q : ''
+  const _genre = typeof genre !== 'undefined' ? genre : ''
+  const _avail = typeof availability !== 'undefined' ? availability : ''
+  const _sort = typeof sort !== 'undefined' ? sort : ''
+  const _action = typeof filterAction !== 'undefined' ? filterAction : '/books'
+  const _showSearch = typeof showSearch !== 'undefined' ? showSearch : false
+  const sortOptions = [['relevance','Relevance'],['title_asc','Title A–Z'],['title_desc','Title Z–A'],['newest','Newest'],['rating','Top rated']]
+%>
+<form method="GET" action="<%= _action %>" class="row g-2 align-items-end bg-light border rounded-3 p-3 mb-4" autocomplete="off">
+  <% if (_showSearch) { %>
+    <div class="col-12 col-md">
+      <label for="filter-q" class="form-label small fw-semibold mb-1"><i class="bi bi-search"></i> Search</label>
+      <input type="text" id="filter-q" name="q" value="<%= _q %>" class="form-control" placeholder="Title, author, or ISBN">
+    </div>
+  <% } %>
+  <div class="col-6 col-md-3">
+    <label for="filter-genre" class="form-label small fw-semibold mb-1">Genre</label>
+    <select id="filter-genre" name="genre" class="form-select">
+      <option value="">All genres</option>
+      <% genres.forEach(g => { %>
+        <option value="<%= g %>" <%= _genre === g ? 'selected' : '' %>><%= g %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="col-6 col-md-2">
+    <label for="filter-avail" class="form-label small fw-semibold mb-1">Availability</label>
+    <select id="filter-avail" name="availability" class="form-select">
+      <option value="">All</option>
+      <option value="in" <%= _avail === 'in' ? 'selected' : '' %>>In stock</option>
+    </select>
+  </div>
+  <div class="col-6 col-md-2">
+    <label for="filter-sort" class="form-label small fw-semibold mb-1">Sort by</label>
+    <select id="filter-sort" name="sort" class="form-select">
+      <% sortOptions.forEach(o => { %>
+        <option value="<%= o[0] %>" <%= _sort === o[0] ? 'selected' : '' %>><%= o[1] %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="col-6 col-md-2 d-grid">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel"></i> Apply</button>
+  </div>
+</form>

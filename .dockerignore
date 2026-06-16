@@ -5,6 +5,9 @@ node_modules
 .kiro
 *.md
 npm-debug.log*
-public/images/*
-public/user_images/*
+# NOTE: do NOT ignore public/images or public/user_images — on hosts without a
+# mounted volume (e.g. Render) the committed book covers and default avatar must
+# be baked into the image, or they render as broken images.
 seed-books.js
+# Test fixtures for the book-import feature — not needed inside the runtime image
+sample-data

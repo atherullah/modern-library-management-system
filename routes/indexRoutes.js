@@ -8,6 +8,7 @@ const router = express.Router()
 // Books
 router.get('/', indexController.home)
 router.get('/books/:page?', indexController.allBooks)
+router.get('/search/suggest', indexController.searchSuggest)
 router.get('/search', indexController.searchBook)
 router.get('/book/:id', indexController.bookDetail)
 router.post('/book/:id/review', requireAuth, indexController.addReview)

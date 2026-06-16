@@ -1,0 +1,7 @@
+<% if (typeof msg !== 'undefined' && msg && msg.length) { %>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.showToast) window.showToast(<%- JSON.stringify(String(msg)) %>, 'info')
+  })
+</script>
+<% } %>

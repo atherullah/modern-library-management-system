@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   app:
     build: .
@@ -7,16 +5,17 @@ services:
     restart: unless-stopped
     ports:
       - '3000:3000'
+    # Load all secrets/config from .env (GOOGLE_*, GEMINI/GROQ, EMAIL_*, JWT, APP_URL).
+    # env_file passes values literally, so a '$' in a secret is not interpolated.
+    env_file:
+      - path: .env
+        format: raw
+    # Container-specific overrides (take precedence over env_file).
+    # DB_URL must point at the 'mongo' service, not whatever .env holds.
     environment:
       NODE_ENV: production
       PORT: 3000
       DB_URL: mongodb://mongo:27017/library-management-system
-      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
-      EMAIL_HOST: ${EMAIL_HOST}
-      EMAIL_PORT: ${EMAIL_PORT}
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASS: ${EMAIL_PASS}
-      EMAIL_FROM: ${EMAIL_FROM}
     volumes:
       # Persist uploaded images outside the container
       - uploads:/app/public/images
