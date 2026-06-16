@@ -9,7 +9,7 @@
 # here — use a free MongoDB Atlas M0 cluster and paste its URI into DB_URL.
 services:
   - type: web
-    name: library-management-system
+    name: ather-library-portal
     runtime: docker          # build from ./Dockerfile
     plan: free               # free tier: sleeps after ~15 min idle, ~50s cold start
     branch: main             # the branch Render deploys

@@ -36,7 +36,7 @@ auto-generated or optional.
    - `JWT_PRIVATE_KEY` → leave it; Render auto-generates it.
    - Everything else (`EMAIL_*`, `GROQ_API_KEY`, `GOOGLE_*`, `APP_URL`) → leave blank for now. *(optional — see Step 4)*
 5. Click **Apply**. Render builds the Dockerfile and deploys. First build ~3–5 min.
-6. When it's live you'll get a URL like `https://library-management-system.onrender.com`. Open it. 🎉
+6. When it's live you'll get a URL like `https://ather-library-portal.onrender.com`. Open it. 🎉
 
 ## Step 3 — Seed the database (optional, for demo data)
 
